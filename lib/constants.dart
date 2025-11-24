@@ -1,12 +1,21 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+const String _configuredBaseUrl =
+    String.fromEnvironment('DJANGO_BASE_URL', defaultValue: '');
 const String _webBaseUrl = 'http://localhost:8000';
 const String _androidEmulatorBaseUrl = 'http://10.0.2.2:8000';
 
-// Select proper base URL for current platform (web vs Android emulator).
-String get djangoBaseUrl =>
-    kIsWeb ? _webBaseUrl : _androidEmulatorBaseUrl;
+// Select proper base URL (allow override via --dart-define).
+String get djangoBaseUrl {
+  if (_configuredBaseUrl.isNotEmpty) {
+    return _configuredBaseUrl;
+  }
+  if (kIsWeb) {
+    return _webBaseUrl;
+  }
+  return _androidEmulatorBaseUrl;
+}
 
 // Authentication palette derived from the Django templates.
 const Color primaryNavColor = Color(0xFF0E5A64);

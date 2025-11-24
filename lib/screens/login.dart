@@ -108,53 +108,67 @@ class _LoginPageState extends State<LoginPage> {
                           final username = _usernameController.text;
                           final password = _passwordController.text;
 
-                          final response = await request.login(
-                            '$djangoBaseUrl/auth/login/',
-                            {
-                              'username': username,
-                              'password': password,
-                            },
-                          );
-
-                          if (!mounted) return;
-
-                          if (request.loggedIn) {
-                            final message =
-                                response['message'] ?? 'Login successful!';
-                            final uname = response['username'] ?? username;
-
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const MyHomePage(),
-                              ),
+                          try {
+                            final response = await request.login(
+                              '$djangoBaseUrl/auth/login/',
+                              {
+                                'username': username,
+                                'password': password,
+                              },
                             );
 
+                            if (!mounted) return;
+
+                            if (request.loggedIn) {
+                              final message =
+                                  response['message'] ?? 'Login successful!';
+                              final uname = response['username'] ?? username;
+
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const MyHomePage(),
+                                ),
+                              );
+
+                              ScaffoldMessenger.of(context)
+                                ..hideCurrentSnackBar()
+                                ..showSnackBar(
+                                  SnackBar(
+                                    content: Text('$message Welcome, $uname.'),
+                                    backgroundColor: accentDarkColor,
+                                  ),
+                                );
+                            } else {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Login Failed'),
+                                  content: Text(
+                                    response['message'] ??
+                                        'Login failed, please check your credentials.',
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('OK'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (!mounted) return;
                             ScaffoldMessenger.of(context)
                               ..hideCurrentSnackBar()
                               ..showSnackBar(
                                 SnackBar(
-                                  content: Text('$message Welcome, $uname.'),
-                                  backgroundColor: accentDarkColor,
+                                  content: Text(
+                                    'Login error: ${e.toString().split(":").last.trim()}',
+                                  ),
+                                  backgroundColor: Colors.red.shade400,
                                 ),
                               );
-                          } else {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Text('Login Failed'),
-                                content: Text(
-                                  response['message'] ??
-                                      'Login failed, please check your credentials.',
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('OK'),
-                                  ),
-                                ],
-                              ),
-                            );
                           }
                         },
                         style: ElevatedButton.styleFrom(

@@ -152,41 +152,53 @@ class _RegisterPageState extends State<RegisterPage> {
                             final password2 =
                                 _confirmPasswordController.text;
 
-                            final response = await request.postJson(
-                              '$djangoBaseUrl/auth/register/',
-                              jsonEncode(
-                                {
-                                  'username': username,
-                                  'password1': password1,
-                                  'password2': password2,
-                                },
-                              ),
-                            );
+                            try {
+                              final response = await request.postJson(
+                                '$djangoBaseUrl/auth/register/',
+                                jsonEncode(
+                                  {
+                                    'username': username,
+                                    'password1': password1,
+                                    'password2': password2,
+                                  },
+                                ),
+                              );
 
-                            if (!mounted) return;
+                              if (!mounted) return;
 
-                            if (response['status'] == 'success') {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    response['message'] ??
-                                        'Successfully registered!',
+                              if (response['status'] == 'success') {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      response['message'] ??
+                                          'Successfully registered!',
+                                    ),
+                                    backgroundColor: accentDarkColor,
                                   ),
-                                  backgroundColor: accentDarkColor,
-                                ),
-                              );
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const LoginPage(),
-                                ),
-                              );
-                            } else {
+                                );
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const LoginPage(),
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      response['message'] ??
+                                          'Failed to register, please try again.',
+                                    ),
+                                    backgroundColor: Colors.red.shade400,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (!mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    response['message'] ??
-                                        'Failed to register, please try again.',
+                                    'Register error: ${e.toString().split(":").last.trim()}',
                                   ),
                                   backgroundColor: Colors.red.shade400,
                                 ),
