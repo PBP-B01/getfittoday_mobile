@@ -6,7 +6,9 @@ Anggota Kelompok :
 - Samuel Indriano / 2406400524
 - Wildan Anshari Hidayat / 2406396590
 
+
 Deskripsi Aplikasi : GetFitToday adalah aplikasi mobile yang berfungsi sebagai platform pencarian dan reservasi fasilitas olahraga berbasis peta interaktif. Aplikasi ini memudahkan pengguna menemukan lokasi olahraga (gym, lapangan, dll) di sekitar mereka, melakukan booking tempat, berbelanja perlengkapan olahraga, hingga bergabung dengan komunitas olahraga. Aplikasi ini bertujuan untuk menciptakan ekosistem olahraga yang terintegrasi dan mudah diakses oleh user.
+
 
 
 Daftar modul serta penjelasannya:
@@ -34,6 +36,7 @@ Modul ini membangun social network di dalam platform. User dapat melihat informa
 - Online Shop / Store --> Aaron Nathanael Suhaendi
 
 Modul yang bertindak sebagai store di mana user yang sudah login bisa melakukan pembelian perlengkapan olahraga seperti bola, pakaian, alat gym, dll.
+
 
 
 Role beserta Deskripsi :
