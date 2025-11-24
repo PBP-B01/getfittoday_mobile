@@ -56,3 +56,34 @@ Admin aplikasi memiliki wewenang untuk menghapus dan memodifikasi informasi seti
 - Admin komunitas
 
 Admin komunitas memiliki wewenang untuk menghapus dan memodifikasi informasi komunitas yang dipegang, juga dapat membuat dan mengatur acara olahraga yang akan diadakan komunitas.
+
+
+Alur Integrasi:
+Langkah-langkah/Alur Pengintegrasian
+
+1. Sisi Backend (Django) - Penyediaan Endpoints :
+Membuat View JSON: Membuat views baru yang mengembalikan data dalam format JSON
+
+Routing URL: Menambahkan path baru di urls.py yang mengarah ke views tersebut.
+
+Konfigurasi Keamanan: Mengatur CORS (Cross-Origin Resource Sharing) atau allowed hosts agar Flutter diizinkan mengakses data dari server.
+
+2. Sisi Frontend (Flutter) - Pengambilan Data :
+Aplikasi Flutter bertindak sebagai client yang meminta data.
+
+Dependency: Menambahkan package seperti http atau pbp_django_auth untuk melakukan permintaan HTTP.
+
+Model Data: Membuat kelas model Dart dengan QuickType untuk memetakan struktur JSON dari Django menjadi objek Dart.
+
+Asynchronous Fetching: Membuat fungsi async untuk melakukan request ke URL Django dan menunggu responsnya.
+
+3. Alur Eksekusi : 
+Request (Permintaan): Pengguna melakukan aksi di Flutter (misal: membuka halaman atau menekan tombol). Flutter mengirimkan HTTP Request (seperti GET atau POST) ke URL endpoint Django.
+
+Processing (Pemrosesan): Server Django menerima request tersebut. URL Routing mengarahkan request ke View yang sesuai. View kemudian mengambil data dari Database atau memproses data inputan.
+
+Response (Tanggapan): Django mengonversi data (dari database/objek Python) menjadi format JSON (Serialisasi). Data JSON ini dikirim kembali ke Flutter sebagai HTTP Response.
+
+Decoding & Rendering: Flutter menerima respons JSON tersebut. Flutter melakukan decode (mengubah JSON menjadi objek Dart). Terakhir, widget di Flutter diperbarui (biasanya menggunakan FutureBuilder) untuk menampilkan data tersebut ke layar pengguna.
+
+Link Figma: 
