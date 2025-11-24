@@ -62,7 +62,8 @@ Alur Integrasi:
 Langkah-langkah/Alur Pengintegrasian
 
 1. Sisi Backend (Django) - Penyediaan Endpoints :
-Membuat View JSON: Membuat views baru yang mengembalikan data dalam format JSON
+
+Membuat View JSON: Membuat views baru yang mengembalikan data dalam format JSON.
 
 Routing URL: Menambahkan path baru di urls.py yang mengarah ke views tersebut.
 
