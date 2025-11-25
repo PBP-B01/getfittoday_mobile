@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 
@@ -156,7 +157,7 @@ class SiteNavBar extends StatelessWidget {
         final media = MediaQuery.of(dialogContext);
         final panelWidth =
             media.size.width < 420 ? media.size.width * 0.86 : 360.0;
-        final panelHeight = media.size.height - 32;
+        final panelHeight = media.size.height;
         final closeMenu = () {
           if (Navigator.of(dialogContext).canPop()) {
             Navigator.of(dialogContext).pop();
@@ -164,96 +165,97 @@ class SiteNavBar extends StatelessWidget {
         };
 
         return Align(
-          alignment: Alignment.centerRight,
-          child: SafeArea(
-            child: Material(
-              color: Colors.transparent,
-              child: Container(
-                width: panelWidth,
-                height: panelHeight,
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color.fromARGB(60, 0, 0, 0),
-                      blurRadius: 26,
-                      offset: Offset(0, 10),
-                    ),
-                  ],
+          alignment: Alignment.centerLeft,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: panelWidth,
+              height: panelHeight,
+              margin: EdgeInsets.zero,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(18),
+                  bottomRight: Radius.circular(18),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color.fromARGB(70, 0, 0, 0),
+                    blurRadius: 26,
+                    offset: Offset(4, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text(
+                        'Menu',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          color: primaryNavColor,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        tooltip: 'Close',
+                        onPressed: closeMenu,
+                        icon: const Icon(Icons.close, color: primaryNavColor),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Expanded(
+                    child: ListView(
                       children: [
-                        const Text(
-                          'Menu',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                            color: primaryNavColor,
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          tooltip: 'Close',
-                          onPressed: closeMenu,
-                          icon: const Icon(Icons.close, color: primaryNavColor),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Expanded(
-                      child: ListView(
-                        children: [
-                          for (final nav in _navItems)
-                            ListTile(
-                              contentPadding:
-                                  const EdgeInsets.symmetric(horizontal: 4),
-                              leading: Icon(
-                                _iconForDestination(nav.destination),
+                        for (final nav in _navItems)
+                          ListTile(
+                            contentPadding:
+                                const EdgeInsets.symmetric(horizontal: 4),
+                            leading: Icon(
+                              _iconForDestination(nav.destination),
+                              color: nav.destination == active
+                                  ? accentDarkColor
+                                  : primaryNavColor,
+                            ),
+                            title: Text(
+                              nav.label,
+                              style: TextStyle(
+                                fontWeight: nav.destination == active
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
                                 color: nav.destination == active
-                                    ? accentDarkColor
-                                    : primaryNavColor,
-                              ),
-                              title: Text(
-                                nav.label,
-                                style: TextStyle(
-                                  fontWeight: nav.destination == active
-                                      ? FontWeight.w800
-                                      : FontWeight.w600,
-                                  color: nav.destination == active
-                                      ? primaryNavColor
-                                      : inputTextColor,
-                                ),
-                              ),
-                              trailing:
-                                  _routeForDestination(nav.destination) == null
-                                      ? const Text(
-                                          'Soon',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: inkWeakColor,
-                                          ),
-                                        )
-                                      : null,
-                              onTap: () => _handleNavTap(
-                                context,
-                                destination: nav.destination,
-                                label: nav.label,
-                                closeMenu: closeMenu,
+                                    ? primaryNavColor
+                                    : inputTextColor,
                               ),
                             ),
-                        ],
-                      ),
+                            trailing: _routeForDestination(nav.destination) ==
+                                    null
+                                ? const Text(
+                                    'Soon',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: inkWeakColor,
+                                    ),
+                                  )
+                                : null,
+                            onTap: () => _handleNavTap(
+                              context,
+                              destination: nav.destination,
+                              label: nav.label,
+                              closeMenu: closeMenu,
+                            ),
+                          ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -261,7 +263,7 @@ class SiteNavBar extends StatelessWidget {
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final offsetAnimation = Tween<Offset>(
-          begin: const Offset(1, 0),
+          begin: const Offset(-1, 0),
           end: Offset.zero,
         ).animate(
           CurvedAnimation(
@@ -303,11 +305,11 @@ class SiteNavBar extends StatelessWidget {
               children: [
                 Text(
                   brandTitle,
-                  style: const TextStyle(
+                  style: GoogleFonts.inter(
                     color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.4,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
                   ),
                 ),
                 const Spacer(),

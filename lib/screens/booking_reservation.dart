@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
@@ -21,11 +21,31 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   final _notesController = TextEditingController();
   final _dateController = TextEditingController();
   final _timeController = TextEditingController();
+
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
+  String? _selectedTimeLabel;
+  String _selectedDuration = '1 Jam';
 
   late Future<List<Reservation>> _reservationsFuture;
   bool _futureInitialized = false;
+
+  final List<String> _timeSlots =
+      List.generate(15, (index) => '${(index + 8).toString().padLeft(2, '0')}:00');
+  final List<String> _durations = const [
+    '30 Menit',
+    '1 Jam',
+    '1.5 Jam',
+    '2 Jam',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
+    _dateController.text = _formatDate(_selectedDate!);
+  }
 
   @override
   void dispose() {
@@ -48,8 +68,20 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   }
 
   Future<List<Reservation>> _fetchReservations(CookieRequest request) async {
-    final raw =
-        await request.get('$djangoBaseUrl$bookingListEndpoint') as dynamic;
+    dynamic raw;
+    try {
+      raw = await request.get('$djangoBaseUrl$bookingListEndpoint') as dynamic;
+    } catch (e) {
+      throw FormatException(
+        'Response bukan JSON. Pastikan $bookingListEndpoint mengembalikan JSON. Error: $e',
+      );
+    }
+
+    if (raw is String && raw.trim().startsWith('<')) {
+      throw const FormatException(
+        'Response HTML terdeteksi (mungkin endpoint salah atau belum login). Pastikan endpoint mengembalikan JSON.',
+      );
+    }
 
     List<dynamic> dataList = [];
     if (raw is List) {
@@ -66,35 +98,6 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
         .toList();
   }
 
-  Future<void> _selectDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? now,
-      firstDate: now.subtract(const Duration(days: 1)),
-      lastDate: now.add(const Duration(days: 365)),
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-        _dateController.text = _formatDate(picked);
-      });
-    }
-  }
-
-  Future<void> _selectTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        _selectedTime = picked;
-        _timeController.text = _formatTime(picked);
-      });
-    }
-  }
-
   String _formatDate(DateTime date) {
     final m = date.month.toString().padLeft(2, '0');
     final d = date.day.toString().padLeft(2, '0');
@@ -105,6 +108,13 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     final h = time.hour.toString().padLeft(2, '0');
     final m = time.minute.toString().padLeft(2, '0');
     return '$h:$m';
+  }
+
+  TimeOfDay _timeOf(String label) {
+    final parts = label.split(':');
+    final h = int.tryParse(parts.first) ?? 0;
+    final m = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    return TimeOfDay(hour: h, minute: m);
   }
 
   Future<void> _submit(CookieRequest request) async {
@@ -121,8 +131,14 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
       return;
     }
 
+    final titleValue = _classController.text.isNotEmpty
+        ? _classController.text
+        : (_locationController.text.isNotEmpty
+            ? _locationController.text
+            : 'Booking');
+
     final payload = {
-      'title': _classController.text,
+      'title': titleValue,
       'location': _locationController.text,
       'date': _formatDate(_selectedDate!),
       'time': _formatTime(_selectedTime!),
@@ -135,8 +151,8 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
         jsonEncode(payload),
       );
 
-      final success =
-          (response is Map && (response['status'] == 'success' || response['success'] == true));
+      final success = (response is Map &&
+          (response['status'] == 'success' || response['success'] == true));
       final message = (response is Map && response['message'] != null)
           ? response['message'].toString()
           : success
@@ -152,9 +168,12 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
         _dateController.clear();
         _timeController.clear();
         setState(() {
-          _selectedDate = null;
+          final now = DateTime.now();
+          _selectedDate = DateTime(now.year, now.month, now.day);
           _selectedTime = null;
+          _selectedTimeLabel = null;
           _reservationsFuture = _fetchReservations(request);
+          _dateController.text = _formatDate(_selectedDate!);
         });
       }
 
@@ -201,287 +220,194 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
             Expanded(
               child: Center(
                 child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16.0, vertical: 22.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0,
+                    vertical: 16.0,
+                  ),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1180),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Booking Reservation',
-                          style: GoogleFonts.inter(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            color: titleColor,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Terhubung langsung ke Django app booking-reservation kamu. Sesuaikan endpoint di constants.dart jika perlu.',
-                          style: GoogleFonts.inter(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w500,
-                            color: inkWeakColor,
-                          ),
-                        ),
-                        const SizedBox(height: 22),
-                        LayoutBuilder(
-                          builder: (context, constraints) {
-                            final isWide = constraints.maxWidth > 900;
-                            final children = [
-                              Expanded(
-                                flex: 1,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(16.0),
-                                    border: Border.all(color: cardBorderColor),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Color.fromARGB(36, 13, 43, 63),
-                                        offset: Offset(0, 12),
-                                        blurRadius: 28,
+                        const _HeroInfoCard(),
+                        const SizedBox(height: 16),
+                        Center(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFDFE9F7), Colors.white],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                              borderRadius: BorderRadius.circular(18.0),
+                              border: Border.all(
+                                color: const Color(0xFFAEC6E8),
+                                width: 1.5,
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color.fromARGB(32, 13, 43, 63),
+                                  offset: Offset(0, 14),
+                                  blurRadius: 32,
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 20,
+                              ),
+                              child: Form(
+                                key: _formKey,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'BOOK LOCATION',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900,
+                                        color: primaryNavColor,
+                                        letterSpacing: 0.4,
                                       ),
-                                    ],
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(20.0),
-                                    child: Form(
-                                      key: _formKey,
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Buat Booking Baru',
-                                            style: GoogleFonts.inter(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w800,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    SizedBox(
+                                      width: 640,
+                                      child: TextFormField(
+                                        controller: _locationController,
+                                        decoration: InputDecoration(
+                                          hintText: 'Pilih lokasi',
+                                          prefixIcon:
+                                              const Icon(Icons.place_outlined),
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            borderSide: const BorderSide(
+                                              color: Colors.black87,
+                                              width: 1.1,
+                                            ),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                            borderSide: BorderSide(
                                               color: primaryNavColor,
+                                              width: 1.3,
                                             ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          TextFormField(
-                                            controller: _classController,
-                                            decoration: const InputDecoration(
-                                              labelText: 'Nama kelas / aktivitas',
-                                              hintText: 'Contoh: HIIT di Margocity',
-                                            ),
-                                            validator: (value) {
-                                              if (value == null || value.isEmpty) {
-                                                return 'Nama kelas wajib diisi';
-                                              }
-                                              return null;
-                                            },
-                                          ),
-                                          const SizedBox(height: 12),
-                                          TextFormField(
-                                            controller: _locationController,
-                                            decoration: const InputDecoration(
-                                              labelText: 'Lokasi',
-                                              hintText: 'Studio atau kota',
-                                            ),
-                                            validator: (value) {
-                                              if (value == null || value.isEmpty) {
-                                                return 'Lokasi wajib diisi';
-                                              }
-                                              return null;
-                                            },
-                                          ),
-                                          const SizedBox(height: 12),
-                                          GestureDetector(
-                                            onTap: _selectDate,
-                                            child: AbsorbPointer(
-                                              child: TextFormField(
-                                                decoration: const InputDecoration(
-                                                  labelText: 'Tanggal',
-                                                  hintText: 'Pilih tanggal',
-                                                ),
-                                                controller: _dateController,
-                                                validator: (_) {
-                                                  if (_selectedDate == null) {
-                                                    return 'Tanggal wajib diisi';
-                                                  }
-                                                  return null;
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          GestureDetector(
-                                            onTap: _selectTime,
-                                            child: AbsorbPointer(
-                                              child: TextFormField(
-                                                decoration: const InputDecoration(
-                                                  labelText: 'Waktu',
-                                                  hintText: 'Pilih waktu',
-                                                ),
-                                                controller: _timeController,
-                                                validator: (_) {
-                                                  if (_selectedTime == null) {
-                                                    return 'Waktu wajib diisi';
-                                                  }
-                                                  return null;
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                          TextFormField(
-                                            controller: _notesController,
-                                            decoration: const InputDecoration(
-                                              labelText: 'Catatan (opsional)',
-                                              hintText: 'Preferensi pelatih atau lainnya',
-                                            ),
-                                            maxLines: 3,
-                                          ),
-                                          const SizedBox(height: 18),
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: ElevatedButton.icon(
-                                              onPressed: () => _submit(request),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: accentColor,
-                                                foregroundColor: inputTextColor,
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 16,
-                                                  vertical: 14,
-                                                ),
-                                                textStyle: const TextStyle(
-                                                  fontSize: 15.5,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                                shadowColor:
-                                                    accentDarkColor.withOpacity(0.3),
-                                                elevation: 8,
-                                              ),
-                                              icon: const Icon(Icons.add_circle),
-                                              label: const Text('Submit Booking'),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: isWide ? 16 : 0, height: isWide ? 0 : 16),
-                              Expanded(
-                                flex: 1,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(16.0),
-                                    border: Border.all(color: cardBorderColor),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Color.fromARGB(32, 13, 43, 63),
-                                        offset: Offset(0, 12),
-                                        blurRadius: 28,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(20.0),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Reservasi Saya',
-                                          style: GoogleFonts.inter(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w800,
-                                            color: primaryNavColor,
                                           ),
                                         ),
-                                        const SizedBox(height: 12),
-                                        FutureBuilder<List<Reservation>>(
-                                          future: _reservationsFuture,
-                                          builder: (context, snapshot) {
-                                            if (snapshot.connectionState ==
-                                                ConnectionState.waiting) {
-                                              return const Padding(
-                                                padding: EdgeInsets.all(16.0),
-                                                child: Center(
-                                                  child:
-                                                      CircularProgressIndicator.adaptive(),
-                                                ),
-                                              );
-                                            }
-                                            if (snapshot.hasError) {
-                                              return Padding(
-                                                padding: const EdgeInsets.all(12.0),
-                                                child: Text(
-                                                  'Gagal memuat data. Pastikan endpoint di Django sudah aktif.\n${snapshot.error}',
-                                                  style: GoogleFonts.inter(
-                                                    color: Colors.red.shade600,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              );
-                                            }
-
-                                            final reservations = snapshot.data ?? [];
-                                            if (reservations.isEmpty) {
-                                              return Padding(
-                                                padding: const EdgeInsets.all(12.0),
-                                                child: Row(
-                                                  children: [
-                                                    const Icon(
-                                                      Icons.event_busy,
-                                                      color: inkWeakColor,
-                                                    ),
-                                                    const SizedBox(width: 10),
-                                                    Expanded(
-                                                      child: Text(
-                                                        'Belum ada booking. Yuk mulai reservasi pertama kamu!',
-                                                        style: GoogleFonts.inter(
-                                                          fontWeight: FontWeight.w600,
-                                                          color: inkWeakColor,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              );
-                                            }
-
-                                            return ListView.separated(
-                                              shrinkWrap: true,
-                                              physics: const NeverScrollableScrollPhysics(),
-                                              itemCount: reservations.length,
-                                              separatorBuilder: (_, __) =>
-                                                  const SizedBox(height: 10),
-                                              itemBuilder: (context, index) {
-                                                final r = reservations[index];
-                                                return _ReservationCard(reservation: r);
-                                              },
-                                            );
+                                        validator: (value) {
+                                          if (value == null || value.isEmpty) {
+                                            return 'Lokasi wajib diisi';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(height: 18),
+                                    LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        final isWide = constraints.maxWidth > 720;
+                                        final calendar = _CalendarCard(
+                                          selectedDate:
+                                              _selectedDate ?? DateTime.now(),
+                                          onChanged: (date) {
+                                            setState(() {
+                                              _selectedDate = date;
+                                              _dateController.text =
+                                                  _formatDate(date);
+                                              _selectedTimeLabel = null;
+                                              _selectedTime = null;
+                                              _timeController.clear();
+                                            });
                                           },
-                                        ),
-                                      ],
+                                        );
+                                        final timePanel = _TimeSlotCard(
+                                          durations: _durations,
+                                          selectedDuration: _selectedDuration,
+                                          onDurationChanged: (val) {
+                                            setState(() => _selectedDuration = val);
+                                          },
+                                          timeSlots: _timeSlots,
+                                          selectedLabel: _selectedTimeLabel,
+                                          selectedDate: _selectedDate,
+                                          onTimeSelected: (label) {
+                                            setState(() {
+                                              _selectedTimeLabel = label;
+                                              _selectedTime = _timeOf(label);
+                                              _timeController.text = label;
+                                            });
+                                          },
+                                        );
+
+                                        if (isWide) {
+                                          return Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Expanded(child: calendar),
+                                              const SizedBox(width: 12),
+                                              Expanded(child: timePanel),
+                                            ],
+                                          );
+                                        }
+                                        return Column(
+                                          children: [
+                                            calendar,
+                                            const SizedBox(height: 12),
+                                            timePanel,
+                                          ],
+                                        );
+                                      },
                                     ),
-                                  ),
+                                    const SizedBox(height: 18),
+                                    SizedBox(
+                                      width: 640,
+                                      child: TextFormField(
+                                        controller: _notesController,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Catatan (opsional)',
+                                          hintText: 'Preferensi pelatih atau lainnya',
+                                        ),
+                                        maxLines: 2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 18),
+                                    SizedBox(
+                                      width: 220,
+                                      child: ElevatedButton(
+                                        onPressed: () => _submit(request),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: primaryNavColor,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 14,
+                                          ),
+                                          textStyle: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(14),
+                                          ),
+                                          elevation: 6,
+                                        ),
+                                        child: const Text('Confirm Booking'),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ];
-
-                            if (isWide) {
-                              return Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: children,
-                              );
-                            }
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: children,
-                            );
-                          },
+                            ),
+                          ),
                         ),
+                        const SizedBox(height: 20),
+                        _ReservationsSection(future: _reservationsFuture),
                       ],
                     ),
                   ),
@@ -490,6 +416,73 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _HeroInfoCard extends StatelessWidget {
+  const _HeroInfoCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromARGB(30, 0, 0, 0),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(14),
+              bottomLeft: Radius.circular(14),
+            ),
+            child: SizedBox(
+              height: 78,
+              width: 110,
+              child: Image.asset(
+                'assets/gym_image.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Booking Reservation',
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: primaryNavColor,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Pilih lokasi, tanggal, dan waktu yang tersedia.',
+                    style: GoogleFonts.inter(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: inkWeakColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -516,7 +509,7 @@ class Reservation {
     final date = json['date']?.toString();
     final time = json['time']?.toString();
     final schedule =
-        [date, time].where((e) => e != null && e.isNotEmpty).join(' · ');
+        [date, time].where((e) => e != null && e.isNotEmpty).join(' Â· ');
     return Reservation(
       id: json['id'] as int?,
       title: json['title']?.toString() ??
@@ -526,6 +519,335 @@ class Reservation {
       status: json['status']?.toString().toUpperCase() ?? 'PENDING',
       scheduleDisplay: schedule.isEmpty ? 'Jadwal belum diisi' : schedule,
       notes: json['notes']?.toString(),
+    );
+  }
+}
+
+class _CalendarCard extends StatelessWidget {
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onChanged;
+
+  const _CalendarCard({
+    required this.selectedDate,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorderColor, width: 1.2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromARGB(25, 12, 36, 64),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Theme(
+        data: theme.copyWith(
+          colorScheme: theme.colorScheme.copyWith(
+            primary: primaryNavColor,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: inputTextColor,
+          ),
+          datePickerTheme: DatePickerThemeData(
+            dayBackgroundColor: MaterialStateProperty.resolveWith((states) {
+              if (states.contains(MaterialState.selected)) {
+                return primaryNavColor;
+              }
+              return null;
+            }),
+            dayForegroundColor: MaterialStateProperty.resolveWith((states) {
+              if (states.contains(MaterialState.selected)) {
+                return Colors.white;
+              }
+              return inputTextColor;
+            }),
+            todayBorder: const BorderSide(color: Colors.transparent),
+            todayForegroundColor: MaterialStateProperty.all(primaryNavColor),
+          ),
+        ),
+        child: CalendarDatePicker(
+          firstDate: DateTime(
+            DateTime.now().year,
+            DateTime.now().month,
+            DateTime.now().day,
+          ),
+          lastDate: DateTime.now().add(const Duration(days: 365)),
+          initialDate: selectedDate,
+          onDateChanged: onChanged,
+        ),
+      ),
+    );
+  }
+}
+
+class _TimeSlotCard extends StatelessWidget {
+  final List<String> durations;
+  final String selectedDuration;
+  final ValueChanged<String> onDurationChanged;
+  final List<String> timeSlots;
+  final String? selectedLabel;
+  final DateTime? selectedDate;
+  final ValueChanged<String> onTimeSelected;
+
+  const _TimeSlotCard({
+    required this.durations,
+    required this.selectedDuration,
+    required this.onDurationChanged,
+    required this.timeSlots,
+    required this.selectedLabel,
+    required this.selectedDate,
+    required this.onTimeSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorderColor, width: 1.2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromARGB(25, 12, 36, 64),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DropdownButtonFormField<String>(
+              value: selectedDuration,
+              decoration: const InputDecoration(
+                labelText: 'Durasi',
+              ),
+              items: durations
+                  .map(
+                    (d) => DropdownMenuItem<String>(
+                      value: d,
+                      child: Text(d),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (val) {
+                if (val != null) onDurationChanged(val);
+              },
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Waktu tersedia',
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                color: inputTextColor,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final slot in timeSlots)
+                  _TimeSlotChip(
+                    label: slot,
+                    selected: selectedLabel == slot,
+                    disabled: _isPastSlot(slot),
+                    onTap: () => onTimeSelected(slot),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool _isPastSlot(String label) {
+    if (selectedDate == null) return false;
+    final now = DateTime.now();
+    final isToday = selectedDate!.year == now.year &&
+        selectedDate!.month == now.month &&
+        selectedDate!.day == now.day;
+    if (!isToday) return false;
+
+    final slotTime = _timeOf(label);
+    final nowTod = TimeOfDay.fromDateTime(now);
+    if (slotTime.hour < nowTod.hour) return true;
+    if (slotTime.hour == nowTod.hour && slotTime.minute <= nowTod.minute) {
+      return true;
+    }
+    return false;
+  }
+
+  TimeOfDay _timeOf(String label) {
+    final parts = label.split(':');
+    final h = int.tryParse(parts.first) ?? 0;
+    final m = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    return TimeOfDay(hour: h, minute: m);
+  }
+}
+
+class _TimeSlotChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final bool disabled;
+  final VoidCallback onTap;
+
+  const _TimeSlotChip({
+    required this.label,
+    required this.selected,
+    required this.disabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveSelected = selected && !disabled;
+    return GestureDetector(
+      onTap: disabled ? null : onTap,
+      child: Opacity(
+        opacity: disabled ? 0.45 : 1.0,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: effectiveSelected ? primaryNavColor : const Color(0xFFF5F7FB),
+            border: Border.all(
+              color: effectiveSelected ? primaryNavColor : cardBorderColor,
+              width: 1.2,
+            ),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: effectiveSelected
+                ? [
+                    BoxShadow(
+                      color: primaryNavColor.withOpacity(0.18),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Text(
+            '[$label]',
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.w800,
+              color: effectiveSelected ? Colors.white : inputTextColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReservationsSection extends StatelessWidget {
+  final Future<List<Reservation>> future;
+
+  const _ReservationsSection({required this.future});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.0),
+        border: Border.all(color: cardBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromARGB(32, 13, 43, 63),
+            offset: Offset(0, 12),
+            blurRadius: 28,
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Reservasi Saya',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: primaryNavColor,
+              ),
+            ),
+            const SizedBox(height: 12),
+            FutureBuilder<List<Reservation>>(
+              future: future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(
+                      child: CircularProgressIndicator.adaptive(),
+                    ),
+                  );
+                }
+                if (snapshot.hasError) {
+                  return Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Text(
+                      'Gagal memuat data. Pastikan endpoint di Django sudah aktif.\n${snapshot.error}',
+                      style: GoogleFonts.inter(
+                        color: Colors.red.shade600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
+                }
+
+                final reservations = snapshot.data ?? [];
+                if (reservations.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.event_busy,
+                          color: inkWeakColor,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Belum ada booking. Yuk mulai reservasi pertama kamu!',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w600,
+                              color: inkWeakColor,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: reservations.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final r = reservations[index];
+                    return _ReservationCard(reservation: r);
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -576,8 +898,7 @@ class _ReservationCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: color.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(20),
