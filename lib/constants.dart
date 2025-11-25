@@ -6,7 +6,12 @@ const String _configuredBaseUrl =
 const String _webBaseUrl = 'http://localhost:8000';
 const String _androidEmulatorBaseUrl = 'http://10.0.2.2:8000';
 
-// Select proper base URL (allow override via --dart-define).
+/// Adjust these if your Django booking-reservation URLs are different.
+const String bookingListEndpoint =
+    '/booking-reservation/api/reservations/'; // GET
+const String bookingCreateEndpoint =
+    '/booking-reservation/api/reservations/create/'; // POST
+
 String get djangoBaseUrl {
   if (_configuredBaseUrl.isNotEmpty) {
     return _configuredBaseUrl;
@@ -17,7 +22,6 @@ String get djangoBaseUrl {
   return _androidEmulatorBaseUrl;
 }
 
-// Authentication palette derived from the Django templates.
 const Color primaryNavColor = Color(0xFF0E5A64);
 const Color primaryNavDarkerColor = Color(0xFF07434B);
 const Color titleColor = Color(0xFF1B2B5A);
