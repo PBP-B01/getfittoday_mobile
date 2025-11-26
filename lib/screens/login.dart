@@ -110,7 +110,7 @@ class _LoginPageState extends State<LoginPage> {
 
                           try {
                             final response = await request.login(
-                              '$djangoBaseUrl$loginEndpoint',
+                              '$djangoBaseUrl/auth/login/',
                               {
                                 'username': username,
                                 'password': password,

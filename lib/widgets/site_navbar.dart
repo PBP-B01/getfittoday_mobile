@@ -128,7 +128,7 @@ class SiteNavBar extends StatelessWidget {
         break;
       case _ProfileMenuAction.logout:
         try {
-          await request.logout('$djangoBaseUrl$logoutEndpoint');
+          await request.logout('$djangoBaseUrl/auth/logout/');
         } catch (_) {
           // ignore logout exception, still navigate
         }
