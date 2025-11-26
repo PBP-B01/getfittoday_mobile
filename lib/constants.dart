@@ -10,6 +10,11 @@ const String _androidEmulatorBaseUrl = 'http://10.0.2.2:8000';
 /// Sesuaikan dengan project urls; jika home di-root, gunakan '/api/fitness-spots/'.
 const String homeLocationsEndpoint = '/api/fitness-spots/'; // GET
 
+/// Endpoint otentikasi aplikasi central.
+const String loginEndpoint = '/central/login/ajax/'; // POST
+const String registerEndpoint = '/central/register/ajax/'; // POST
+const String logoutEndpoint = '/central/logout/ajax/'; // POST
+
 /// Daftar booking milik user (lihat booking/urls.py -> api/mine/).
 const String bookingListEndpoint = '/booking/api/mine/'; // GET
 /// Endpoint membuat booking baru (booking/urls.py -> book/).

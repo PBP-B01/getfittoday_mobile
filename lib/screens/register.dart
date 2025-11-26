@@ -154,7 +154,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                             try {
                               final response = await request.postJson(
-                                '$djangoBaseUrl/auth/register/',
+                                '$djangoBaseUrl$registerEndpoint',
                                 jsonEncode(
                                   {
                                     'username': username,
