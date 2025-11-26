@@ -2,8 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
-import 'package:getfittoday_mobile/models/location_point.dart';
-import 'package:getfittoday_mobile/services/location_service.dart';
+import 'package:getfittoday_mobile/models/fitness_spot.dart';
+import 'package:getfittoday_mobile/services/fitness_spot_service.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
@@ -24,18 +24,18 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   final _dateController = TextEditingController();
   final _timeController = TextEditingController();
   final FocusNode _locationFocusNode = FocusNode();
-  final _locationService = const LocationService();
+  final _locationService = FitnessSpotService();
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _selectedTimeLabel;
   String _selectedDuration = '1 Jam';
-  LocationPoint? _selectedLocation;
+  FitnessSpot? _selectedLocation;
 
   late Future<List<Reservation>> _reservationsFuture;
   late Future<void> _locationsFuture;
   bool _futureInitialized = false;
-  List<LocationPoint> _locations = const [];
+  List<FitnessSpot> _locations = const [];
 
   final List<String> _timeSlots =
       List.generate(15, (index) => '${(index + 8).toString().padLeft(2, '0')}:00');
@@ -108,7 +108,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   }
 
   Future<void> _loadLocations(CookieRequest request) async {
-    final results = await _locationService.fetchLocations(request);
+    final results = await _locationService.fetchFitnessSpots(request);
     results.sort(_locationComparator);
     if (!mounted) return;
     setState(() {
@@ -116,7 +116,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     });
   }
 
-  int _locationComparator(LocationPoint a, LocationPoint b) {
+  int _locationComparator(FitnessSpot a, FitnessSpot b) {
     final aDist = a.distanceKm;
     final bDist = b.distanceKm;
     if (aDist != null && bDist != null) {
@@ -1051,9 +1051,9 @@ class _ReservationCard extends StatelessWidget {
 class LocationSearchField extends StatelessWidget {
   final TextEditingController controller;
   final FocusNode? focusNode;
-  final List<LocationPoint> locations;
-  final ValueChanged<LocationPoint?>? onSelected;
-  final int Function(LocationPoint, LocationPoint) comparator;
+  final List<FitnessSpot> locations;
+  final ValueChanged<FitnessSpot?>? onSelected;
+  final int Function(FitnessSpot, FitnessSpot) comparator;
 
   const LocationSearchField({
     super.key,
@@ -1066,13 +1066,13 @@ class LocationSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return RawAutocomplete<LocationPoint>(
+    return RawAutocomplete<FitnessSpot>(
       textEditingController: controller,
       focusNode: focusNode,
       optionsBuilder: (textEditingValue) {
         final query = textEditingValue.text.trim().toLowerCase();
         final filtered = query.isEmpty
-            ? List<LocationPoint>.from(locations)
+            ? List<FitnessSpot>.from(locations)
             : locations
                 .where(
                   (loc) =>

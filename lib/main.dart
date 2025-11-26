@@ -8,7 +8,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 
-void main() {
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+import 'package:getfittoday_mobile/utils/maps_loader.dart' if (dart.library.html) 'package:getfittoday_mobile/utils/maps_loader_web.dart';
+
+Future<void> main() async {
+  await dotenv.load(fileName: "assets/.env");
+  await loadGoogleMaps();
   runApp(const MyApp());
 }
 
