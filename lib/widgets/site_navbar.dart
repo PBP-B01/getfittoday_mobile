@@ -298,7 +298,6 @@ class SiteNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
     final username = _usernameFromRequest(request);
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: const BoxDecoration(
