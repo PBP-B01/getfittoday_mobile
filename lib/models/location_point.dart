@@ -6,6 +6,7 @@ class LocationPoint {
   final double? longitude;
   final String? description;
   final String? category;
+  final double? distanceKm;
 
   const LocationPoint({
     this.id,
@@ -15,6 +16,7 @@ class LocationPoint {
     this.longitude,
     this.description,
     this.category,
+    this.distanceKm,
   });
 
   factory LocationPoint.fromJson(Map<String, dynamic> json) {
@@ -22,6 +24,10 @@ class LocationPoint {
       if (v == null) return null;
       if (v is num) return v.toDouble();
       return double.tryParse(v.toString());
+    }
+
+    double? _distanceFrom(dynamic v) {
+      return _toDouble(v ?? json['distance_km'] ?? json['distanceKm']);
     }
 
     return LocationPoint(
@@ -36,6 +42,7 @@ class LocationPoint {
           json['detail']?.toString() ??
           json['deskripsi']?.toString(),
       category: json['category']?.toString() ?? json['kategori']?.toString(),
+      distanceKm: _distanceFrom(json['distance']),
     );
   }
 }

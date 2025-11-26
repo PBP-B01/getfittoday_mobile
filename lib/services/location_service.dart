@@ -25,10 +25,28 @@ class LocationService {
     List<dynamic> dataList = [];
     if (raw is List) {
       dataList = raw;
-    } else if (raw is Map && raw['data'] is List) {
-      dataList = raw['data'] as List;
-    } else if (raw is Map && raw['results'] is List) {
-      dataList = raw['results'] as List;
+    } else if (raw is Map) {
+      final candidateKeys = [
+        'spots',
+        'locations',
+        'data',
+        'results',
+        'items',
+      ];
+      for (final key in candidateKeys) {
+        final value = raw[key];
+        if (value is List) {
+          dataList = value;
+          break;
+        }
+      }
+      // Some APIs wrap the list in a single unnamed key.
+      if (dataList.isEmpty && raw.length == 1) {
+        final onlyValue = raw.values.first;
+        if (onlyValue is List) {
+          dataList = onlyValue;
+        }
+      }
     }
 
     return dataList
