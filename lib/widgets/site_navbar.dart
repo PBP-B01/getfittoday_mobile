@@ -266,6 +266,22 @@ class SiteNavBar extends StatelessWidget {
                                 closeMenu: closeMenu,
                               ),
                             ),
+                            // Tombol khusus untuk cek UI Community Events (sementara)
+                            ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                              leading: const Icon(Icons.event, color: primaryNavColor),
+                              title: const Text(
+                                "Community Events (cek UI)",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: primaryNavColor,
+                                ),
+                              ),
+                              onTap: () {
+                                closeMenu?.call();
+                                Navigator.pushNamed(context, '/community-events-test');
+                              },
+                            ),
                         ],
                       ),
                     ),
