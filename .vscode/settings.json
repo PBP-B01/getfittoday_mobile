@@ -5,6 +5,7 @@
   "files.associations": {
     "generated_plugin_registrant.cc": "plaintext",
     "generated_plugin_registrant.h": "plaintext"
-  }
+  },
+  "java.configuration.updateBuildConfiguration": "interactive"
 }
 
