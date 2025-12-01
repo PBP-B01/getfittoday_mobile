@@ -21,7 +21,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final _fitnessSpotService = FitnessSpotService();
-  final Set<Marker> _markers = {};
+  Set<Marker> _markers = {};
   final Map<String, List<FitnessSpot>> _gridCache = {};
   final Set<String> _loadedGrids = {};
   
@@ -123,7 +123,6 @@ class _MyHomePageState extends State<MyHomePage> {
     final Set<Marker> newMarkers = {};
     final List<FitnessSpot> newVisibleSpots = [];
     final Set<String> processedSpotIds = {};
-
     for (var gridId in visibleGridIds) {
       final spots = _gridCache[gridId];
       if (spots != null) {
@@ -132,14 +131,16 @@ class _MyHomePageState extends State<MyHomePage> {
           processedSpotIds.add(spot.placeId);
           newVisibleSpots.add(spot);
 
+          final isSelected = _selectedSpot?.placeId == spot.placeId;
+
           newMarkers.add(
             Marker(
-              markerId: MarkerId(spot.placeId),
+              markerId: MarkerId(spot.placeId + (isSelected ? '_selected' : '')),
               position: LatLng(spot.latitude, spot.longitude),
               onTap: () => _onSpotSelected(spot),
               icon: BitmapDescriptor.defaultMarkerWithHue(
-                _selectedSpot?.placeId == spot.placeId 
-                    ? BitmapDescriptor.hueAzure 
+                isSelected 
+                    ? BitmapDescriptor.hueBlue 
                     : BitmapDescriptor.hueRed
               ),
             ),
@@ -149,8 +150,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     setState(() {
-      _markers.clear();
-      _markers.addAll(newMarkers);
+      _markers = newMarkers;
       _visibleSpots = newVisibleSpots;
     });
   }
@@ -254,23 +254,39 @@ class _MyHomePageState extends State<MyHomePage> {
               const SiteNavBar(active: NavDestination.home),
               Expanded(
                 child: Center(
-                  child: Container(
-                    width: size.width * 0.8,
-                    height: size.height * 0.5,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "YOUR ONE-STOP SOLUTION TO GET FIT",
+                        style: GoogleFonts.inter(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: titleColor,
+                          letterSpacing: 1.2,
                         ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: _buildMapInterface(isWide),
-                    ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        width: size.width * 0.8,
+                        height: size.height * 0.5,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.4),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: _buildMapInterface(isWide),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -335,6 +351,17 @@ class _MyHomePageState extends State<MyHomePage> {
             top: 60, 
             bottom: (!isWide && _isSidebarVisible) ? 20 : 0
           ), 
+        ),
+        
+        // Center Crosshair
+        const Center(
+          child: IgnorePointer(
+            child: Icon(
+              Icons.add,
+              size: 30,
+              color: Colors.black54,
+            ),
+          ),
         ),
         
         // Info Window (Bottom Card)
