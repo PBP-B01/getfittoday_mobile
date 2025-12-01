@@ -22,7 +22,18 @@ String get djangoBaseUrl {
   if (kIsWeb) {
     return _webBaseUrl;
   }
-  return _androidEmulatorBaseUrl;
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+      // Android emulator exposes the host machine via 10.0.2.2.
+      return _androidEmulatorBaseUrl;
+    case TargetPlatform.iOS:
+    case TargetPlatform.macOS:
+    case TargetPlatform.windows:
+    case TargetPlatform.linux:
+    case TargetPlatform.fuchsia:
+      // Desktop & iOS simulators can talk to localhost directly.
+      return _webBaseUrl;
+  }
 }
 
 const Color primaryNavColor = Color(0xFF0E5A64);

@@ -1,0 +1,11 @@
+{
+  // Treat generated Windows plugin registrant files as plain text so
+  // C/C++ IntelliSense does not report bogus errors when the Windows
+  // toolchain is not installed.
+  "files.associations": {
+    "generated_plugin_registrant.cc": "plaintext",
+    "generated_plugin_registrant.h": "plaintext"
+  },
+  "java.configuration.updateBuildConfiguration": "interactive"
+}
+

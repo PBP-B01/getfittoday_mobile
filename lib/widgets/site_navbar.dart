@@ -175,8 +175,7 @@ class SiteNavBar extends StatelessWidget {
               width: panelWidth,
               height: panelHeight,
               margin: EdgeInsets.zero,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: const BorderRadius.only(
@@ -194,68 +193,84 @@ class SiteNavBar extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const Text(
-                        'Menu',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                          color: primaryNavColor,
-                        ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 16,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: primaryNavColor,
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(18),
                       ),
-                      const Spacer(),
-                      IconButton(
-                        tooltip: 'Close',
-                        onPressed: closeMenu,
-                        icon: const Icon(Icons.close, color: primaryNavColor),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Expanded(
-                    child: ListView(
+                    ),
+                    child: Row(
                       children: [
-                        for (final nav in _navItems)
-                          ListTile(
-                            contentPadding:
-                                const EdgeInsets.symmetric(horizontal: 4),
-                            leading: Icon(
-                              _iconForDestination(nav.destination),
-                              color: nav.destination == active
-                                  ? accentDarkColor
-                                  : primaryNavColor,
-                            ),
-                            title: Text(
-                              nav.label,
-                              style: TextStyle(
-                                fontWeight: nav.destination == active
-                                    ? FontWeight.w800
-                                    : FontWeight.w600,
+                        const Text(
+                          'Menu',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 20,
+                            color: Colors.white,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          tooltip: 'Close',
+                          onPressed: closeMenu,
+                          splashRadius: 20,
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: ListView(
+                        children: [
+                          for (final nav in _navItems)
+                            ListTile(
+                              contentPadding:
+                                  const EdgeInsets.symmetric(horizontal: 4),
+                              leading: Icon(
+                                _iconForDestination(nav.destination),
                                 color: nav.destination == active
-                                    ? primaryNavColor
-                                    : inputTextColor,
+                                    ? accentDarkColor
+                                    : primaryNavColor,
+                              ),
+                              title: Text(
+                                nav.label,
+                                style: TextStyle(
+                                  fontWeight: nav.destination == active
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
+                                  color: nav.destination == active
+                                      ? primaryNavColor
+                                      : inputTextColor,
+                                ),
+                              ),
+                              trailing: _routeForDestination(nav.destination) ==
+                                      null
+                                  ? const Text(
+                                      'Soon',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: inkWeakColor,
+                                      ),
+                                    )
+                                  : null,
+                              onTap: () => _handleNavTap(
+                                context,
+                                destination: nav.destination,
+                                label: nav.label,
+                                closeMenu: closeMenu,
                               ),
                             ),
-                            trailing: _routeForDestination(nav.destination) ==
-                                    null
-                                ? const Text(
-                                    'Soon',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: inkWeakColor,
-                                    ),
-                                  )
-                                : null,
-                            onTap: () => _handleNavTap(
-                              context,
-                              destination: nav.destination,
-                              label: nav.label,
-                              closeMenu: closeMenu,
-                            ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -286,7 +301,6 @@ class SiteNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
     final username = _usernameFromRequest(request);
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: const BoxDecoration(
@@ -306,13 +320,32 @@ class SiteNavBar extends StatelessWidget {
             final isCompact = constraints.maxWidth < 720;
             return Row(
               children: [
-                Text(
-                  brandTitle,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
+                if (isCompact) ...[
+                  IconButton(
+                    onPressed: () => _openMobileMenu(context),
+                    icon: const Icon(Icons.menu, color: Colors.white, size: 26),
+                    tooltip: 'Menu',
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _handleNavTap(
+                    context,
+                    destination: NavDestination.home,
+                    label: 'Home',
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(
+                      brandTitle,
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
                   ),
                 ),
                 const Spacer(),
@@ -334,12 +367,6 @@ class SiteNavBar extends StatelessWidget {
                           ),
                         ),
                     ],
-                  )
-                else
-                  IconButton(
-                    onPressed: () => _openMobileMenu(context),
-                    icon: const Icon(Icons.menu, color: Colors.white, size: 26),
-                    tooltip: 'Menu',
                   ),
                 const SizedBox(width: 16),
             PopupMenuButton<_ProfileMenuAction>(

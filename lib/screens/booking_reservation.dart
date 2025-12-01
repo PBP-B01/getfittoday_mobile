@@ -2,6 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
+import 'package:getfittoday_mobile/models/fitness_spot.dart';
+import 'package:getfittoday_mobile/services/fitness_spot_service.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
@@ -21,14 +23,19 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   final _notesController = TextEditingController();
   final _dateController = TextEditingController();
   final _timeController = TextEditingController();
+  final FocusNode _locationFocusNode = FocusNode();
+  final _locationService = FitnessSpotService();
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _selectedTimeLabel;
   String _selectedDuration = '1 Jam';
+  FitnessSpot? _selectedLocation;
 
   late Future<List<Reservation>> _reservationsFuture;
+  late Future<void> _locationsFuture;
   bool _futureInitialized = false;
+  List<FitnessSpot> _locations = const [];
 
   final List<String> _timeSlots =
       List.generate(15, (index) => '${(index + 8).toString().padLeft(2, '0')}:00');
@@ -54,6 +61,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     _notesController.dispose();
     _dateController.dispose();
     _timeController.dispose();
+    _locationFocusNode.dispose();
     super.dispose();
   }
 
@@ -63,6 +71,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     if (!_futureInitialized) {
       final request = context.read<CookieRequest>();
       _reservationsFuture = _fetchReservations(request);
+      _locationsFuture = _loadLocations(request);
       _futureInitialized = true;
     }
   }
@@ -96,6 +105,26 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
         .whereType<Map<String, dynamic>>()
         .map((json) => Reservation.fromJson(json))
         .toList();
+  }
+
+  Future<void> _loadLocations(CookieRequest request) async {
+    final results = await _locationService.fetchFitnessSpots(request);
+    results.sort(_locationComparator);
+    if (!mounted) return;
+    setState(() {
+      _locations = results;
+    });
+  }
+
+  int _locationComparator(FitnessSpot a, FitnessSpot b) {
+    final aDist = a.distanceKm;
+    final bDist = b.distanceKm;
+    if (aDist != null && bDist != null) {
+      return aDist.compareTo(bDist);
+    }
+    if (aDist != null) return -1;
+    if (bDist != null) return 1;
+    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
   }
 
   String _formatDate(DateTime date) {
@@ -275,36 +304,66 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                     const SizedBox(height: 16),
                                     SizedBox(
                                       width: 640,
-                                      child: TextFormField(
-                                        controller: _locationController,
-                                        decoration: InputDecoration(
-                                          hintText: 'Pilih lokasi',
-                                          prefixIcon:
-                                              const Icon(Icons.place_outlined),
-                                          filled: true,
-                                          fillColor: Colors.white,
-                                          enabledBorder: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                            borderSide: const BorderSide(
-                                              color: Colors.black87,
-                                              width: 1.1,
-                                            ),
-                                          ),
-                                          focusedBorder: OutlineInputBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                            borderSide: BorderSide(
-                                              color: primaryNavColor,
-                                              width: 1.3,
-                                            ),
-                                          ),
-                                        ),
-                                        validator: (value) {
-                                          if (value == null || value.isEmpty) {
-                                            return 'Lokasi wajib diisi';
+                                      child: FutureBuilder<void>(
+                                        future: _locationsFuture,
+                                        builder: (context, snapshot) {
+                                          if (snapshot.connectionState ==
+                                              ConnectionState.waiting) {
+                                            return const Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                  vertical: 8.0),
+                                              child: LinearProgressIndicator(
+                                                minHeight: 6,
+                                                color: primaryNavColor,
+                                              ),
+                                            );
                                           }
-                                          return null;
+                                          if (snapshot.hasError) {
+                                            return Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  'Gagal memuat lokasi. Tap ulang untuk coba lagi.',
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.red.shade600,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                ElevatedButton.icon(
+                                                  onPressed: () {
+                                                    final request =
+                                                        context.read<
+                                                            CookieRequest>();
+                                                    setState(() {
+                                                      _locationsFuture =
+                                                          _loadLocations(
+                                                              request);
+                                                    });
+                                                  },
+                                                  icon: const Icon(Icons.refresh),
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        primaryNavColor,
+                                                  ),
+                                                  label: const Text('Coba lagi'),
+                                                ),
+                                              ],
+                                            );
+                                          }
+
+                                          return LocationSearchField(
+                                            controller: _locationController,
+                                            focusNode: _locationFocusNode,
+                                            locations: _locations,
+                                            onSelected: (loc) {
+                                              setState(() {
+                                                _selectedLocation = loc;
+                                              });
+                                            },
+                                            comparator: _locationComparator,
+                                          );
                                         },
                                       ),
                                     ),
@@ -462,7 +521,7 @@ class _HeroInfoCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Booking Reservation',
+                    'Booking & Reservation',
                     style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w900,
@@ -550,6 +609,7 @@ class _CalendarCard extends StatelessWidget {
       ),
       child: Theme(
         data: theme.copyWith(
+          useMaterial3: false,
           colorScheme: theme.colorScheme.copyWith(
             primary: primaryNavColor,
             onPrimary: Colors.white,
@@ -557,11 +617,12 @@ class _CalendarCard extends StatelessWidget {
             onSurface: inputTextColor,
           ),
           datePickerTheme: DatePickerThemeData(
+            dayShape: MaterialStateProperty.all(const CircleBorder()),
             dayBackgroundColor: MaterialStateProperty.resolveWith((states) {
               if (states.contains(MaterialState.selected)) {
-                return primaryNavColor;
+                return primaryNavDarkerColor;
               }
-              return null;
+              return Colors.transparent;
             }),
             dayForegroundColor: MaterialStateProperty.resolveWith((states) {
               if (states.contains(MaterialState.selected)) {
@@ -569,7 +630,18 @@ class _CalendarCard extends StatelessWidget {
               }
               return inputTextColor;
             }),
-            todayBorder: const BorderSide(color: Colors.transparent),
+            dayOverlayColor: MaterialStateProperty.resolveWith((states) {
+              if (states.contains(MaterialState.pressed)) {
+                return primaryNavColor.withOpacity(0.2);
+              }
+              if (states.contains(MaterialState.hovered)) {
+                return primaryNavColor.withOpacity(0.12);
+              }
+              return null;
+            }),
+            todayBorder: BorderSide(
+              color: primaryNavColor.withOpacity(0.1),
+            ),
             todayForegroundColor: MaterialStateProperty.all(primaryNavColor),
           ),
         ),
@@ -738,7 +810,7 @@ class _TimeSlotChip extends StatelessWidget {
                 : null,
           ),
           child: Text(
-            '[$label]',
+            label,
             style: GoogleFonts.inter(
               fontWeight: FontWeight.w800,
               color: effectiveSelected ? Colors.white : inputTextColor,
@@ -973,5 +1045,159 @@ class _ReservationCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class LocationSearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final FocusNode? focusNode;
+  final List<FitnessSpot> locations;
+  final ValueChanged<FitnessSpot?>? onSelected;
+  final int Function(FitnessSpot, FitnessSpot) comparator;
+
+  const LocationSearchField({
+    super.key,
+    required this.controller,
+    this.focusNode,
+    required this.locations,
+    required this.onSelected,
+    required this.comparator,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return RawAutocomplete<FitnessSpot>(
+      textEditingController: controller,
+      focusNode: focusNode,
+      optionsBuilder: (textEditingValue) {
+        final query = textEditingValue.text.trim().toLowerCase();
+        final filtered = query.isEmpty
+            ? List<FitnessSpot>.from(locations)
+            : locations
+                .where(
+                  (loc) =>
+                      loc.name.toLowerCase().contains(query) ||
+                      (loc.address?.toLowerCase().contains(query) ?? false) ||
+                      (loc.description?.toLowerCase().contains(query) ??
+                          false),
+                )
+                .toList();
+        filtered.sort(comparator);
+        return filtered;
+      },
+      displayStringForOption: (opt) => opt.name,
+      onSelected: (loc) {
+        controller.text = loc.name;
+        onSelected?.call(loc);
+      },
+      fieldViewBuilder:
+          (context, textEditingController, focusNode, onFieldSubmitted) {
+        return TextFormField(
+          controller: textEditingController,
+          focusNode: focusNode,
+          decoration: InputDecoration(
+            hintText: 'Cari lokasi...',
+            prefixIcon: const Icon(Icons.search),
+            filled: true,
+            fillColor: Colors.white,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.black87, width: 1.1),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: primaryNavColor, width: 1.3),
+            ),
+          ),
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Lokasi wajib diisi';
+            }
+            return null;
+          },
+          onChanged: (val) => onSelected?.call(null),
+          onFieldSubmitted: (val) => onFieldSubmitted(),
+        );
+      },
+      optionsViewBuilder: (context, onSelectedOption, options) {
+        final theme = Theme.of(context);
+        final opts = options.toList();
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 6,
+            borderRadius: BorderRadius.circular(12),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxHeight: 280,
+                maxWidth: 640,
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: opts.length,
+                separatorBuilder: (_, __) =>
+                    Container(height: 1, color: cardBorderColor.withOpacity(0.4)),
+                itemBuilder: (context, index) {
+                  final loc = opts[index];
+                  final distance = _distanceText(loc.distanceKm);
+                  return InkWell(
+                    onTap: () => onSelectedOption(loc),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  loc.name,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: inputTextColor,
+                                  ),
+                                ),
+                                if (loc.address != null &&
+                                    loc.address!.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2.0),
+                                    child: Text(
+                                      loc.address!,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: inkWeakColor,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          if (distance != null)
+                            Text(
+                              distance,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: inkWeakColor,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String? _distanceText(double? km) {
+    if (km == null) return null;
+    if (km >= 10) return '${km.toStringAsFixed(0)} km';
+    return '${km.toStringAsFixed(1)} km';
   }
 }
