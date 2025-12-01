@@ -6,6 +6,7 @@ import 'package:getfittoday_mobile/services/fitness_spot_service.dart';
 import 'package:getfittoday_mobile/utils/grid_helper.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
 import 'package:getfittoday_mobile/widgets/location_sidebar.dart';
+import 'package:getfittoday_mobile/widgets/add_spot_form.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
@@ -491,6 +492,37 @@ class _MyHomePageState extends State<MyHomePage> {
                 foregroundColor: primaryNavColor,
                 onPressed: _onMyLocationPressed,
                 child: const Icon(Icons.my_location),
+              ),
+              const SizedBox(height: 8),
+
+              // Add Spot Button
+              FloatingActionButton.small(
+                heroTag: 'add_spot',
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                onPressed: () async {
+                  if (_mapController != null) {
+                    final bounds = await _mapController!.getVisibleRegion();
+                    final centerLat = (bounds.northeast.latitude + bounds.southwest.latitude) / 2;
+                    final centerLng = (bounds.northeast.longitude + bounds.southwest.longitude) / 2;
+                    
+                    if (mounted) {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => AddSpotForm(
+                          latitude: centerLat,
+                          longitude: centerLng,
+                          onSuccess: () {
+                            _updateVisibleSpots();
+                          },
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Icon(Icons.add),
               ),
             ],
           ),
