@@ -7,6 +7,7 @@ import 'package:getfittoday_mobile/screens/register.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:getfittoday_mobile/community/screens/community_list.dart'; // Import buat 
 
 void main() {
   runApp(const MyApp());
@@ -78,6 +79,7 @@ class MyApp extends StatelessWidget {
           '/register': (context) => const RegisterPage(),
           '/home': (context) => const MyHomePage(),
           '/booking': (context) => const BookingReservationPage(),
+          '/community': (context) => const CommunityListPage(), // DITAMBAHIN 
         },
       ),
     );

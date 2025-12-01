@@ -149,7 +149,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
                             final username = _usernameController.text;
                             final password1 = _passwordController.text;
-                            final password2 =
                                 _confirmPasswordController.text;
 
                             try {
@@ -158,8 +157,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                 jsonEncode(
                                   {
                                     'username': username,
-                                    'password1': password1,
-                                    'password2': password2,
+                                    'password': password1,
                                   },
                                 ),
                               );
