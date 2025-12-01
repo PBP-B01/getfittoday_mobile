@@ -26,6 +26,9 @@ class _AddSpotFormState extends State<AddSpotForm> {
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _typeController = TextEditingController();
+  final _websiteController = TextEditingController();
+  final _phoneController = TextEditingController();
   
   bool _isLoading = false;
 
@@ -34,6 +37,9 @@ class _AddSpotFormState extends State<AddSpotForm> {
     _nameController.dispose();
     _addressController.dispose();
     _descriptionController.dispose();
+    _typeController.dispose();
+    _websiteController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -50,8 +56,11 @@ class _AddSpotFormState extends State<AddSpotForm> {
         'description': _descriptionController.text,
         'latitude': widget.latitude,
         'longitude': widget.longitude,
-        // Default values or extra fields
-        'types': ['gym'], // Default type
+        'website': _websiteController.text,
+        'phone_number': _phoneController.text,
+        'types': _typeController.text.isNotEmpty 
+            ? [_typeController.text] 
+            : ['gym'], // Default if empty
       };
 
       final success = await service.createFitnessSpot(request, data);
@@ -135,6 +144,7 @@ class _AddSpotFormState extends State<AddSpotForm> {
                 },
               ),
               const SizedBox(height: 12),
+              const SizedBox(height: 12),
               TextFormField(
                 controller: _descriptionController,
                 decoration: const InputDecoration(
@@ -142,6 +152,46 @@ class _AddSpotFormState extends State<AddSpotForm> {
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _typeController.text.isNotEmpty ? _typeController.text : 'gym',
+                decoration: const InputDecoration(
+                  labelText: 'Type',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'gym', child: Text('Gym')),
+                  DropdownMenuItem(value: 'park', child: Text('Park')),
+                  DropdownMenuItem(value: 'stadium', child: Text('Stadium')),
+                  DropdownMenuItem(value: 'sports_complex', child: Text('Sports Complex')),
+                  DropdownMenuItem(value: 'swimming_pool', child: Text('Swimming Pool')),
+                  DropdownMenuItem(value: 'yoga_studio', child: Text('Yoga Studio')),
+                  DropdownMenuItem(value: 'fitness_center', child: Text('Fitness Center')),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    _typeController.text = value;
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _websiteController,
+                decoration: const InputDecoration(
+                  labelText: 'Website (optional)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Phone Number (optional)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 24),
               SizedBox(

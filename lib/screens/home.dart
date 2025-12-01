@@ -160,14 +160,57 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _selectedSpot = spot;
       _showInfoWindow = true;
-      // Ensure sidebar is visible when a spot is selected
       _isSidebarVisible = true;
+      
+      // Update markers directly here to avoid double setState
+      // We need to create a new set of markers with updated colors
+      final Set<Marker> newMarkers = {};
+      for (var m in _markers) {
+        // Check if this marker corresponds to the selected spot
+        // Note: MarkerId might have _selected suffix already
+        final isTarget = m.markerId.value == spot.placeId || m.markerId.value == '${spot.placeId}_selected';
+        
+        newMarkers.add(
+          m.copyWith(
+            iconParam: BitmapDescriptor.defaultMarkerWithHue(
+              isTarget ? BitmapDescriptor.hueBlue : BitmapDescriptor.hueRed
+            ),
+            // Update ID to force refresh if needed, but copyWith keeps ID. 
+            // To force refresh on web, we might need to replace the marker entirely with new ID.
+            // Let's stick to the previous logic but inside this loop.
+          )
+        );
+      }
+      // Actually, _rebuildMarkersAndList does a full rebuild from cache which is safer for consistency.
+      // Let's just call _rebuildMarkersAndList but WITHOUT setState inside it?
+      // No, _rebuildMarkersAndList calls setState.
+      // So we should NOT call setState here, but let _rebuildMarkersAndList do it?
+      // But we need to set _selectedSpot first.
+      // So:
+      // 1. Set _selectedSpot (local var or state?)
+      // 2. Call _rebuildMarkersAndList
     });
     
-    // Rebuild markers to update colors
-    _rebuildMarkersAndList(_loadedGrids);
+    // Wait, _rebuildMarkersAndList uses _selectedSpot from state.
+    // So we must set it first.
+    // If we call setState here, then _rebuildMarkersAndList calls setState again.
+    // Solution: Create a version of _rebuildMarkersAndList that returns the new values instead of setting state,
+    // OR just modify _rebuildMarkersAndList to accept an optional 'shouldSetState' param?
+    // Or just inline the logic here?
+    // Let's inline the marker update logic or make _rebuildMarkersAndList smarter.
     
-    // Move camera to spot
+    // Better approach:
+    // Just call _rebuildMarkersAndList and pass the new selected spot?
+    // No, let's keep it simple.
+    // I will remove the setState wrapping here and just set the variables, then call _rebuildMarkersAndList which calls setState.
+    
+    _selectedSpot = spot;
+    _showInfoWindow = true;
+    _isSidebarVisible = true;
+    
+    _rebuildMarkersAndList(_loadedGrids);
+
+    // Move camera
     _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(
         LatLng(spot.latitude, spot.longitude),
@@ -515,6 +558,11 @@ class _MyHomePageState extends State<MyHomePage> {
                           latitude: centerLat,
                           longitude: centerLng,
                           onSuccess: () {
+                            // Clear local cache to force re-fetch
+                            setState(() {
+                              _gridCache.clear();
+                              _loadedGrids.clear();
+                            });
                             _updateVisibleSpots();
                           },
                         ),
