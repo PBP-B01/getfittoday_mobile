@@ -147,7 +147,7 @@ DateTime? _parseDateFromParts(String rawDate, String rawTime) {
 DateTime? _parseIsoDateTime(String? iso) {
   if (iso == null || iso.isEmpty) return null;
   try {
-    return DateTime.parse(iso);
+    return DateTime.parse(iso).toLocal();
   } catch (_) {
     return null;
   }

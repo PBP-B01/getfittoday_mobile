@@ -248,8 +248,9 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     final payload = {
       'resource_id': resourceId,
       'resource_label': resourceLabel,
-      'start_time': start.toIso8601String(),
-      'end_time': end.toIso8601String(),
+      // Kirim dalam UTC agar backend (yang menganggap naive sebagai UTC) tetap benar
+      'start_time': start.toUtc().toIso8601String(),
+      'end_time': end.toUtc().toIso8601String(),
       'title': titleValue,
       'notes': _notesController.text,
     };
