@@ -54,26 +54,29 @@ class _LocationSidebarState extends State<LocationSidebar> {
   }
 
   void _scrollToSelectedSpot() {
-    if (widget.selectedSpot == null) return;
+    if (widget.selectedSpot == null || _isInternalSelection) return;
     
     final index = _filteredSpots.indexWhere((s) => s.placeId == widget.selectedSpot!.placeId);
     if (index != -1) {
-      // Use a slight delay to ensure list is built
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
-          // Simple approximation:
-          const double itemHeight = 80.0; // Approximate height of ListTile + padding
-          final double targetOffset = index * itemHeight;
+          // Calculate offset based on index and estimated item height.
+          // This is still an approximation. For exact scrolling, we'd need keys.
+          // But to fix the "glitch", we ensure we don't animate if we are already there or if it's internal.
           
-          // Clamp offset
+          final double itemHeight = 130.0; // Matches itemExtent
+          final double targetOffset = index * itemHeight;
           final double maxScroll = _scrollController.position.maxScrollExtent;
           final double offset = targetOffset.clamp(0.0, maxScroll);
 
-          _scrollController.animateTo(
-            offset,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-          );
+          // Only animate if the difference is significant to avoid small jitters
+          if ((_scrollController.offset - offset).abs() > 10) {
+             _scrollController.animateTo(
+              offset,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          }
         }
       });
     }
@@ -186,6 +189,7 @@ class _LocationSidebarState extends State<LocationSidebar> {
                     )
                   : ListView.builder(
                       controller: _scrollController,
+                      itemExtent: 130.0, // Enforce fixed height for accurate scrolling
                       itemCount: _filteredSpots.length,
                       itemBuilder: (context, index) {
                         final spot = _filteredSpots[index];
@@ -217,9 +221,12 @@ class _LocationSidebarState extends State<LocationSidebar> {
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
                               children: [
                                 Text(
                                   spot.name,
+                                  maxLines: 1, // Ensure 1 line
+                                  overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.inter(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,

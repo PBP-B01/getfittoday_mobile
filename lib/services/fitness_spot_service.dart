@@ -1,4 +1,5 @@
 
+import 'dart:convert';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/models/fitness_spot.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
@@ -51,6 +52,22 @@ class FitnessSpotService {
     } catch (e) {
       print('Error fetching map boundaries: $e');
       return null;
+    }
+  }
+
+  Future<bool> createFitnessSpot(CookieRequest request, Map<String, dynamic> data) async {
+    final url = '$djangoBaseUrl$homeLocationsEndpoint';
+    try {
+      final response = await request.post(url, jsonEncode(data));
+      // Adjust based on your backend response structure.
+      // Usually pbp_django_auth returns the JSON decoded body.
+      if (response['status'] == 'success' || response['id'] != null || response['place_id'] != null) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('Error creating fitness spot: $e');
+      return false;
     }
   }
 }
