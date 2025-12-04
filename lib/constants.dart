@@ -11,9 +11,29 @@ const String _androidEmulatorBaseUrl = 'http://10.0.2.2:8000';
 const String homeLocationsEndpoint = '/api/fitness-spots/'; // GET
 
 /// Daftar booking milik user (lihat booking/urls.py -> api/mine/).
-const String bookingListEndpoint = '/booking/api/mine/'; // GET
+const String _bookingListEndpointEnv =
+    String.fromEnvironment('BOOKING_LIST_ENDPOINT', defaultValue: '');
+const String _bookingCreateEndpointEnv =
+    String.fromEnvironment('BOOKING_CREATE_ENDPOINT', defaultValue: '');
+const String _defaultBookingListEndpoint = '/booking/api/mine/'; // GET
+/// Endpoint alternatif yang umum dipakai pada proyek Django GetFitToday.
+const List<String> bookingListEndpointCandidates = <String>[
+  _defaultBookingListEndpoint,
+  '/booking/api/bookings/',
+  '/booking/api/list/',
+];
 /// Endpoint membuat booking baru (booking/urls.py -> book/).
-const String bookingCreateEndpoint = '/booking/book/'; // POST
+const String _defaultBookingCreateEndpoint = '/booking/book/'; // POST
+
+String get bookingListEndpoint {
+  if (_bookingListEndpointEnv.isNotEmpty) return _bookingListEndpointEnv;
+  return _defaultBookingListEndpoint;
+}
+
+String get bookingCreateEndpoint {
+  if (_bookingCreateEndpointEnv.isNotEmpty) return _bookingCreateEndpointEnv;
+  return _defaultBookingCreateEndpoint;
+}
 
 String get djangoBaseUrl {
   if (_configuredBaseUrl.isNotEmpty) {

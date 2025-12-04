@@ -124,7 +124,7 @@ class SiteNavBar extends StatelessWidget {
   ) async {
     switch (action) {
       case _ProfileMenuAction.bookings:
-        _go(context, '/booking');
+        _go(context, '/my-bookings');
         break;
       case _ProfileMenuAction.logout:
         try {

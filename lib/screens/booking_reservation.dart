@@ -3,7 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/models/fitness_spot.dart';
+import 'package:getfittoday_mobile/models/reservation.dart';
 import 'package:getfittoday_mobile/services/fitness_spot_service.dart';
+import 'package:getfittoday_mobile/services/reservation_service.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
@@ -25,6 +27,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   final _timeController = TextEditingController();
   final FocusNode _locationFocusNode = FocusNode();
   final _locationService = FitnessSpotService();
+  final _reservationService = ReservationService();
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -36,6 +39,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   late Future<void> _locationsFuture;
   bool _futureInitialized = false;
   List<FitnessSpot> _locations = const [];
+  List<Reservation> _myReservations = const [];
 
   final List<String> _timeSlots =
       List.generate(15, (index) => '${(index + 8).toString().padLeft(2, '0')}:00');
@@ -70,41 +74,29 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     super.didChangeDependencies();
     if (!_futureInitialized) {
       final request = context.read<CookieRequest>();
-      _reservationsFuture = _fetchReservations(request);
+      _reloadReservations(request);
       _locationsFuture = _loadLocations(request);
       _futureInitialized = true;
     }
   }
 
-  Future<List<Reservation>> _fetchReservations(CookieRequest request) async {
-    dynamic raw;
+  Future<void> _reloadReservations(CookieRequest request) async {
+    final future = _fetchReservations(request);
+    setState(() {
+      _reservationsFuture = future;
+    });
     try {
-      raw = await request.get('$djangoBaseUrl$bookingListEndpoint') as dynamic;
-    } catch (e) {
-      throw FormatException(
-        'Response bukan JSON. Pastikan $bookingListEndpoint mengembalikan JSON. Error: $e',
-      );
+      final result = await future;
+      if (mounted) {
+        setState(() => _myReservations = result);
+      }
+    } catch (_) {
+      // handled by UI FutureBuilder
     }
+  }
 
-    if (raw is String && raw.trim().startsWith('<')) {
-      throw const FormatException(
-        'Response HTML terdeteksi (mungkin endpoint salah atau belum login). Pastikan endpoint mengembalikan JSON.',
-      );
-    }
-
-    List<dynamic> dataList = [];
-    if (raw is List) {
-      dataList = raw;
-    } else if (raw is Map && raw['data'] is List) {
-      dataList = raw['data'];
-    } else if (raw is Map && raw['results'] is List) {
-      dataList = raw['results'];
-    }
-
-    return dataList
-        .whereType<Map<String, dynamic>>()
-        .map((json) => Reservation.fromJson(json))
-        .toList();
+  Future<List<Reservation>> _fetchReservations(CookieRequest request) {
+    return _reservationService.fetchMine(request);
   }
 
   Future<void> _loadLocations(CookieRequest request) async {
@@ -127,6 +119,60 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     return a.name.toLowerCase().compareTo(b.name.toLowerCase());
   }
 
+  int _durationInMinutes() {
+    switch (_selectedDuration) {
+      case '30 Menit':
+        return 30;
+      case '1 Jam':
+        return 60;
+      case '1.5 Jam':
+        return 90;
+      case '2 Jam':
+      default:
+        return 120;
+    }
+  }
+
+  Set<String> _disabledSlotsForSelected() {
+    if (_selectedDate == null || _myReservations.isEmpty) return <String>{};
+
+    final date = _selectedDate!;
+    final selectedLoc =
+        (_selectedLocation?.name ?? _locationController.text).trim().toLowerCase();
+    final durationMinutes = _durationInMinutes();
+
+    bool sameDay(DateTime dt) =>
+        dt.year == date.year && dt.month == date.month && dt.day == date.day;
+
+    bool locationMatch(Reservation r) {
+      if (selectedLoc.isEmpty) return true;
+      final loc = r.location.toLowerCase();
+      return loc.contains(selectedLoc) || selectedLoc.contains(loc);
+    }
+
+    final disabled = <String>{};
+    for (final slot in _timeSlots) {
+      final tod = _timeOf(slot);
+      final slotStart = DateTime(date.year, date.month, date.day, tod.hour, tod.minute);
+      final slotEnd = slotStart.add(Duration(minutes: durationMinutes));
+
+      final conflict = _myReservations.any((r) {
+        if (r.isClosed) return false;
+        if (!locationMatch(r)) return false;
+        final rs = r.startDateTime;
+        final re = r.endDateTime ??
+            (rs != null ? rs.add(const Duration(hours: 1)) : null);
+        if (rs == null || re == null) return false;
+        if (!sameDay(rs)) return false;
+        return rs.isBefore(slotEnd) && re.isAfter(slotStart);
+      });
+
+      if (conflict) disabled.add(slot);
+    }
+
+    return disabled;
+  }
+
   String _formatDate(DateTime date) {
     final m = date.month.toString().padLeft(2, '0');
     final d = date.day.toString().padLeft(2, '0');
@@ -144,6 +190,19 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     final h = int.tryParse(parts.first) ?? 0;
     final m = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
     return TimeOfDay(hour: h, minute: m);
+  }
+
+  bool get _hasSelectedLocation => _selectedLocation != null;
+
+  void _showLocationRequired() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Pilih lokasi terlebih dahulu sebelum memilih tanggal atau jam.'),
+          backgroundColor: accentDarkColor,
+        ),
+      );
   }
 
   Future<void> _submit(CookieRequest request) async {
@@ -166,11 +225,32 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
             ? _locationController.text
             : 'Booking');
 
+    final start = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
+    );
+
+    int durationMinutes;
+    durationMinutes = _durationInMinutes();
+
+    final end = start.add(Duration(minutes: durationMinutes));
+
+    final resourceId = _selectedLocation?.placeId.isNotEmpty == true
+        ? _selectedLocation!.placeId
+        : _locationController.text;
+
+    final resourceLabel =
+        _selectedLocation?.name ?? _locationController.text ?? titleValue;
+
     final payload = {
+      'resource_id': resourceId,
+      'resource_label': resourceLabel,
+      'start_time': start.toIso8601String(),
+      'end_time': end.toIso8601String(),
       'title': titleValue,
-      'location': _locationController.text,
-      'date': _formatDate(_selectedDate!),
-      'time': _formatTime(_selectedTime!),
       'notes': _notesController.text,
     };
 
@@ -180,13 +260,23 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
         jsonEncode(payload),
       );
 
-      final success = (response is Map &&
-          (response['status'] == 'success' || response['success'] == true));
-      final message = (response is Map && response['message'] != null)
-          ? response['message'].toString()
-          : success
-              ? 'Booking created.'
-              : 'Gagal membuat booking, cek konfigurasi endpoint.';
+      final success = response is Map &&
+          (response['status'] == 'success' ||
+              response['success'] == true ||
+              response['id'] != null);
+      final message = () {
+        if (response is Map) {
+          if (response['message'] != null) {
+            return response['message'].toString();
+          }
+          if (response['detail'] != null) {
+            return response['detail'].toString();
+          }
+        }
+        return success
+            ? 'Booking created.'
+            : 'Gagal membuat booking, cek konfigurasi endpoint.';
+      }();
 
       if (!mounted) return;
 
@@ -201,7 +291,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
           _selectedDate = DateTime(now.year, now.month, now.day);
           _selectedTime = null;
           _selectedTimeLabel = null;
-          _reservationsFuture = _fetchReservations(request);
+          _reloadReservations(request);
           _dateController.text = _formatDate(_selectedDate!);
         });
       }
@@ -360,6 +450,11 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                             onSelected: (loc) {
                                               setState(() {
                                                 _selectedLocation = loc;
+                                                if (loc == null) {
+                                                  _selectedTime = null;
+                                                  _selectedTimeLabel = null;
+                                                  _timeController.clear();
+                                                }
                                               });
                                             },
                                             comparator: _locationComparator,
@@ -371,7 +466,13 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                     LayoutBuilder(
                                       builder: (context, constraints) {
                                         final isWide = constraints.maxWidth > 720;
+                                        final hasLocation = _hasSelectedLocation;
+                                        final disabledSlots =
+                                            _disabledSlotsForSelected();
                                         final calendar = _CalendarCard(
+                                          enabled: hasLocation,
+                                          onRequireLocation:
+                                              _showLocationRequired,
                                           selectedDate:
                                               _selectedDate ?? DateTime.now(),
                                           onChanged: (date) {
@@ -387,6 +488,9 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                         );
                                         final timePanel = _TimeSlotCard(
                                           durations: _durations,
+                                          enabled: hasLocation,
+                                          onRequireLocation:
+                                              _showLocationRequired,
                                           selectedDuration: _selectedDuration,
                                           onDurationChanged: (val) {
                                             setState(() => _selectedDuration = val);
@@ -394,6 +498,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                           timeSlots: _timeSlots,
                                           selectedLabel: _selectedTimeLabel,
                                           selectedDate: _selectedDate,
+                                          disabledSlots: disabledSlots,
                                           onTimeSelected: (label) {
                                             setState(() {
                                               _selectedTimeLabel = label;
@@ -547,46 +652,15 @@ class _HeroInfoCard extends StatelessWidget {
   }
 }
 
-class Reservation {
-  final int? id;
-  final String title;
-  final String location;
-  final String status;
-  final String scheduleDisplay;
-  final String? notes;
-
-  Reservation({
-    required this.id,
-    required this.title,
-    required this.location,
-    required this.status,
-    required this.scheduleDisplay,
-    this.notes,
-  });
-
-  factory Reservation.fromJson(Map<String, dynamic> json) {
-    final date = json['date']?.toString();
-    final time = json['time']?.toString();
-    final schedule =
-        [date, time].where((e) => e != null && e.isNotEmpty).join(' Â· ');
-    return Reservation(
-      id: json['id'] as int?,
-      title: json['title']?.toString() ??
-          json['class_name']?.toString() ??
-          'Booking',
-      location: json['location']?.toString() ?? 'Lokasi belum diisi',
-      status: json['status']?.toString().toUpperCase() ?? 'PENDING',
-      scheduleDisplay: schedule.isEmpty ? 'Jadwal belum diisi' : schedule,
-      notes: json['notes']?.toString(),
-    );
-  }
-}
-
 class _CalendarCard extends StatelessWidget {
+  final bool enabled;
+  final VoidCallback onRequireLocation;
   final DateTime selectedDate;
   final ValueChanged<DateTime> onChanged;
 
   const _CalendarCard({
+    required this.enabled,
+    required this.onRequireLocation,
     required this.selectedDate,
     required this.onChanged,
   });
@@ -594,7 +668,7 @@ class _CalendarCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return DecoratedBox(
+    final card = DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFFF5F7FB),
         borderRadius: BorderRadius.circular(16),
@@ -607,81 +681,116 @@ class _CalendarCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Theme(
-        data: theme.copyWith(
-          useMaterial3: false,
-          colorScheme: theme.colorScheme.copyWith(
-            primary: primaryNavColor,
-            onPrimary: Colors.white,
-            surface: Colors.white,
-            onSurface: inputTextColor,
-          ),
-          datePickerTheme: DatePickerThemeData(
-            dayShape: MaterialStateProperty.all(const CircleBorder()),
-            dayBackgroundColor: MaterialStateProperty.resolveWith((states) {
-              if (states.contains(MaterialState.selected)) {
-                return primaryNavDarkerColor;
-              }
-              return Colors.transparent;
-            }),
-            dayForegroundColor: MaterialStateProperty.resolveWith((states) {
-              if (states.contains(MaterialState.selected)) {
-                return Colors.white;
-              }
-              return inputTextColor;
-            }),
-            dayOverlayColor: MaterialStateProperty.resolveWith((states) {
-              if (states.contains(MaterialState.pressed)) {
-                return primaryNavColor.withOpacity(0.2);
-              }
-              if (states.contains(MaterialState.hovered)) {
-                return primaryNavColor.withOpacity(0.12);
-              }
-              return null;
-            }),
-            todayBorder: BorderSide(
-              color: primaryNavColor.withOpacity(0.1),
-            ),
-            todayForegroundColor: MaterialStateProperty.all(primaryNavColor),
-          ),
+    );
+
+    final content = Theme(
+      data: theme.copyWith(
+        useMaterial3: false,
+        colorScheme: theme.colorScheme.copyWith(
+          primary: primaryNavColor,
+          onPrimary: Colors.white,
+          surface: Colors.white,
+          onSurface: inputTextColor,
         ),
-        child: CalendarDatePicker(
-          firstDate: DateTime(
-            DateTime.now().year,
-            DateTime.now().month,
-            DateTime.now().day,
+        datePickerTheme: DatePickerThemeData(
+          dayShape: MaterialStateProperty.all(const CircleBorder()),
+          dayBackgroundColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return primaryNavDarkerColor;
+            }
+            return Colors.transparent;
+          }),
+          dayForegroundColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return Colors.white;
+            }
+            return inputTextColor;
+          }),
+          dayOverlayColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.pressed)) {
+              return primaryNavColor.withOpacity(0.2);
+            }
+            if (states.contains(MaterialState.hovered)) {
+              return primaryNavColor.withOpacity(0.12);
+            }
+            return null;
+          }),
+          todayBorder: BorderSide(
+            color: primaryNavColor.withOpacity(0.1),
           ),
-          lastDate: DateTime.now().add(const Duration(days: 365)),
-          initialDate: selectedDate,
-          onDateChanged: onChanged,
+          todayForegroundColor: MaterialStateProperty.all(primaryNavColor),
         ),
       ),
+      child: CalendarDatePicker(
+        firstDate: DateTime(
+          DateTime.now().year,
+          DateTime.now().month,
+          DateTime.now().day,
+        ),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+        initialDate: selectedDate,
+        onDateChanged: onChanged,
+      ),
+    );
+
+    final cardWithPicker = DecoratedBox(
+      decoration: card.decoration,
+      child: content,
+    );
+
+    if (enabled) return cardWithPicker;
+
+    return Stack(
+      children: [
+        Opacity(
+          opacity: 0.5,
+          child: AbsorbPointer(
+            absorbing: true,
+            child: cardWithPicker,
+          ),
+        ),
+        Positioned.fill(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: onRequireLocation,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _TimeSlotCard extends StatelessWidget {
   final List<String> durations;
+  final bool enabled;
+  final VoidCallback onRequireLocation;
   final String selectedDuration;
   final ValueChanged<String> onDurationChanged;
   final List<String> timeSlots;
   final String? selectedLabel;
   final DateTime? selectedDate;
   final ValueChanged<String> onTimeSelected;
+  final Set<String> disabledSlots;
 
   const _TimeSlotCard({
     required this.durations,
+    required this.enabled,
+    required this.onRequireLocation,
     required this.selectedDuration,
     required this.onDurationChanged,
     required this.timeSlots,
     required this.selectedLabel,
     required this.selectedDate,
     required this.onTimeSelected,
+    required this.disabledSlots,
   });
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    final panel = DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFFF5F7FB),
         borderRadius: BorderRadius.circular(16),
@@ -733,15 +842,46 @@ class _TimeSlotCard extends StatelessWidget {
                 for (final slot in timeSlots)
                   _TimeSlotChip(
                     label: slot,
-                    selected: selectedLabel == slot,
-                    disabled: _isPastSlot(slot),
-                    onTap: () => onTimeSelected(slot),
+                    selected: enabled && selectedLabel == slot,
+                    disabled: !enabled ||
+                        _isPastSlot(slot) ||
+                        disabledSlots.contains(slot),
+                    onTap: () {
+                      if (!enabled) {
+                        onRequireLocation();
+                        return;
+                      }
+                      onTimeSelected(slot);
+                    },
                   ),
               ],
             ),
           ],
         ),
       ),
+    );
+
+    if (enabled) return panel;
+
+    return Stack(
+      children: [
+        Opacity(
+          opacity: 0.55,
+          child: AbsorbPointer(
+            absorbing: true,
+            child: panel,
+          ),
+        ),
+        Positioned.fill(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: onRequireLocation,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
