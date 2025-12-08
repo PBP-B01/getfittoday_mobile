@@ -21,8 +21,23 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
     final request = context.watch<CookieRequest>();
     
     // === HARDCODE STATUS ===
-    final bool loggedIn = false; 
-    final bool isAdmin = false; 
+    // Ganti logika ini dengan data asli jika sudah ada auth
+    bool loggedIn = false;
+    bool isAdmin = false;
+
+    final data = request.jsonData;
+    if (data is Map) {
+      if ((data['username'] is String && (data['username'] as String).isNotEmpty) ||
+          (request.cookies['username']?.value != null && request.cookies['username']!.value.isNotEmpty)) {
+        loggedIn = true;
+      }
+      if (data['is_superuser'] == true || data['is_admin'] == true) {
+        isAdmin = true;
+      }
+    } else {
+      final cookie = request.cookies['username'];
+      if (cookie != null && cookie.value.isNotEmpty) loggedIn = true;
+    }
     // =======================
 
     return AlertDialog(
@@ -97,7 +112,13 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
                   const Icon(Icons.store, size: 16, color: Colors.grey),
                   const SizedBox(width: 6),
                   const Text("Dijual oleh: ", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  Text(widget.product.fields.storeName, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  Expanded(
+                    child: Text(
+                      widget.product.fields.storeName, 
+                      style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
 
@@ -162,7 +183,10 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
       width: double.infinity,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEEF2FF), foregroundColor: const Color(0xFF4F46E5)),
-        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur Login belum tersedia"))),
+        onPressed: () {
+            // Navigator.pushNamed(context, '/login'); // Uncomment jika route login sudah siap
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Silakan login terlebih dahulu")));
+        },
         child: const Text("Login untuk Beli"),
       ),
     );

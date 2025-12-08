@@ -1,7 +1,4 @@
-// products_entry_list.dart
-
 import 'package:flutter/material.dart';
-
 import 'package:getfittoday_mobile/models/product.dart';
 import 'package:getfittoday_mobile/screens/cart_page.dart';
 import 'package:getfittoday_mobile/screens/home.dart';
@@ -11,11 +8,9 @@ import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 
 // =====PERUBAHAN BARU=====
-// Import constants & SiteNavBar supaya background dan navbar Store sama dengan Home
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
 // =====PERUBAHAN BARU=====
-
 
 class ProductEntryListPage extends StatefulWidget {
   const ProductEntryListPage({super.key});
@@ -25,12 +20,23 @@ class ProductEntryListPage extends StatefulWidget {
 }
 
 class _ProductEntryListPageState extends State<ProductEntryListPage> {
+  // Search & Filter State
   String _uiSearchQuery = "";
   String _uiSortOption = "terbaru";
   final TextEditingController _searchController = TextEditingController();
   String _appliedSearchQuery = "";
   String _appliedSortOption = "terbaru";
-  int _cartCount = 0; 
+  
+  // Data & Pagination State
+  List<Product> _products = [];
+  bool _isLoading = true;
+  int _cartCount = 0;
+  
+  // Variabel Pagination
+  int _currentPage = 1;
+  int _totalPages = 1;
+  bool _hasNext = false;
+  bool _hasPrevious = false;
 
   final Map<String, String> _sortOptions = {
     "terbaru": "Terbaru",
@@ -45,11 +51,12 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _updateCartCount();
+      _fetchProducts(); // Panggil fetch pertama kali
     });
   }
 
   void refreshList() {
-    setState(() {});
+    _fetchProducts(page: _currentPage); // Refresh halaman saat ini
     _updateCartCount(); 
   }
 
@@ -68,21 +75,54 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
     }
   }
 
-  Future<List<Product>> fetchProduct(CookieRequest request) async {
+  // Method baru untuk fetch dengan pagination
+  Future<void> _fetchProducts({int page = 1}) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final request = context.read<CookieRequest>();
+    
+    // URL dengan parameter page
     final url = Uri.parse('http://127.0.0.1:8000/store/api/products/').replace(queryParameters: {
       'q': _appliedSearchQuery,
       'sort': _appliedSortOption,
+      'page': page.toString(),
     });
 
-    final response = await request.get(url.toString());
-    
-    if (response is! List) return [];
+    try {
+      final response = await request.get(url.toString());
+      
+      if (response != null) {
+        // Parsing data produk dari key 'products'
+        List<Product> listProduct = [];
+        for (var d in response['products']) {
+          if (d != null) listProduct.add(Product.fromJson(d));
+        }
 
-    List<Product> listProduct = [];
-    for (var d in response) {
-      if (d != null) listProduct.add(Product.fromJson(d));
+        if (mounted) {
+          setState(() {
+            _products = listProduct;
+            // Update metadata pagination
+            _currentPage = response['current_page'];
+            _totalPages = response['total_pages'];
+            _hasNext = response['has_next'];
+            _hasPrevious = response['has_previous'];
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print("Error fetching products: $e");
+      if (mounted) setState(() => _isLoading = false);
     }
-    return listProduct;
+  }
+
+  // Method untuk ganti halaman
+  void _changePage(int newPage) {
+    if (newPage >= 1 && newPage <= _totalPages) {
+      _fetchProducts(page: newPage);
+    }
   }
 
   @override
@@ -94,9 +134,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
     // ===================================================
 
     // =====PERUBAHAN BARU=====
-    // Gunakan Scaffold tanpa AppBar tapi dengan Container gradient agar sama seperti Home
     return Scaffold(
-      // jangan atur backgroundColor di sini; gunakan Container dengan gradient seperti home.dart
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -108,9 +146,10 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
         child: SafeArea(
           child: Column(
             children: [
-              // Tambahkan SiteNavBar dengan active: store
+              // Tambahkan SiteNavBar
               const SiteNavBar(active: NavDestination.store), // =====PERUBAHAN BARU=====
-              // Konten utama di bawah navbar
+              
+              // Konten utama
               Expanded(
                 child: _buildStoreContent(context, request, isAdmin),
               ),
@@ -122,10 +161,10 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
     // =====PERUBAHAN BARU=====
   }
 
-  // Dipisahkan ke method agar build lebih bersih
   Widget _buildStoreContent(BuildContext context, CookieRequest request, bool isAdmin) {
     return Column(
       children: [
+        // Header & Title
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
           child: Column(
@@ -166,7 +205,6 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
                     ),
                   ),
 
-                  // === HANYA TAMPIL JIKA BUKAN ADMIN ===
                   if (!isAdmin) 
                     Align(
                       alignment: Alignment.centerRight,
@@ -221,7 +259,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
           ),
         ),
 
-        // SEARCH & FILTER
+        // Search & Filter
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Row(
@@ -249,6 +287,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
                         _uiSearchQuery = val;
                         _appliedSearchQuery = val;
                       });
+                      _fetchProducts(page: 1); // Reset ke halaman 1 saat search
                     },
                   ),
                 ),
@@ -300,6 +339,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
                       _appliedSearchQuery = _searchController.text;
                       _appliedSortOption = _uiSortOption;
                     });
+                    _fetchProducts(page: 1); // Reset ke halaman 1 saat filter
                   },
                   child: const Text("Filter", style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
@@ -341,33 +381,91 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
 
         const SizedBox(height: 16),
 
+        // Grid Produk (Menggunakan State _products, bukan FutureBuilder lagi)
         Expanded(
-          child: FutureBuilder(
-            future: fetchProduct(context.read<CookieRequest>()),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(child: Text("Produk tidak ditemukan."));
-              }
-
-              return GridView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.50, 
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
+          child: _isLoading 
+            ? const Center(child: CircularProgressIndicator())
+            : _products.isEmpty
+              ? const Center(child: Text("Produk tidak ditemukan."))
+              : GridView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.50,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                  ),
+                  itemCount: _products.length,
+                  itemBuilder: (_, index) {
+                    return ProductEntryCard(
+                      product: _products[index],
+                      onRefresh: refreshList,
+                    );
+                  },
                 ),
-                itemCount: snapshot.data!.length,
-                itemBuilder: (_, index) {
-                  return ProductEntryCard(
-                    product: snapshot.data![index],
-                    onRefresh: refreshList,
-                  );
-                },
-              );
-            },
+        ),
+
+        // ===== PAGINATION CONTROLS =====
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          color: Colors.transparent, // Transparan agar menyatu dengan background
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Tombol Previous
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _hasPrevious ? Colors.grey.shade400 : Colors.grey.shade200),
+                ),
+                child: IconButton(
+                  onPressed: _hasPrevious ? () => _changePage(_currentPage - 1) : null,
+                  icon: const Icon(Icons.chevron_left),
+                  color: _hasPrevious ? const Color(0xFF1B2B5A) : Colors.grey.shade300,
+                  tooltip: "Halaman Sebelumnya",
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+              
+              // Info Halaman
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))
+                  ]
+                ),
+                child: Text(
+                  "Halaman $_currentPage dari $_totalPages",
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold, 
+                    color: Color(0xFF1B2B5A),
+                    fontSize: 14
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+
+              // Tombol Next
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _hasNext ? Colors.grey.shade400 : Colors.grey.shade200),
+                ),
+                child: IconButton(
+                  onPressed: _hasNext ? () => _changePage(_currentPage + 1) : null,
+                  icon: const Icon(Icons.chevron_right),
+                  color: _hasNext ? const Color(0xFF1B2B5A) : Colors.grey.shade300,
+                  tooltip: "Halaman Selanjutnya",
+                ),
+              ),
+            ],
           ),
         ),
       ],

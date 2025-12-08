@@ -59,128 +59,125 @@ class ProductEntryCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min, // BIAR CARD NGIKUTIN KONTEN, BUKAN MAKSA PANJANG
         children: [
-          // === GAMBAR PRODUK ===
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: product.fields.imageUrl.isNotEmpty
-                ? Image.network(
-                    product.fields.imageUrl,
-                    width: double.infinity,
-                    height: 145, // tinggi gambar fix supaya card konsisten
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      height: 145,
+          // === GAMBAR PRODUK (Gunakan Expanded agar fleksibel) ===
+          Expanded( // <--- GANTI INI DARI FIXED HEIGHT KE EXPANDED
+            flex: 6, // Porsi gambar 60%
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: product.fields.imageUrl.isNotEmpty
+                  ? Image.network(
+                      product.fields.imageUrl,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.broken_image),
+                      ),
+                    )
+                  : Container(
+                      width: double.infinity,
                       color: Colors.grey[200],
-                      child: const Icon(Icons.broken_image),
+                      child: const Icon(Icons.image),
                     ),
-                  )
-                : Container(
-                    width: double.infinity,
-                    height: 145,
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.image),
-                  ),
+            ),
           ),
 
           // === DETAIL & TOMBOL ===
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min, // supaya isi tidak maksa turun
-              children: [
-                // ===== NAMA PRODUK =====
-                SizedBox(
-                  height: 38, // kira-kira tinggi untuk max 2 baris teks
-                  child: Text(
-                    product.fields.name,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      height: 1.2,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-
-                // ===== LOKASI TOKO =====
-                Row(
-                  children: [
-                    const Icon(Icons.store_mall_directory, size: 13, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        product.fields.storeName,
-                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+          Expanded( // <--- KONTEN BAWAH JUGA EXPANDED
+            flex: 8, // Porsi teks 80% (total 14 bagian)
+            child: Padding(
+              padding: const EdgeInsets.all(10.0), // Padding agak dikecilkan dikit
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween, // Biar tombol mentok bawah
+                children: [
+                  // Detail Text
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Nama Produk
+                      Text(
+                        product.fields.name,
+                        style: const TextStyle(
+                          fontSize: 14, // Kecilkan dikit biar muat
+                          fontWeight: FontWeight.w600,
+                          height: 1.1,
+                        ),
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 10),
-
-                // ===== HARGA =====
-                Text(
-                  "Rp ${product.fields.price}",
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1B2B5A),
+                      const SizedBox(height: 4),
+                      // Lokasi
+                      Row(
+                        children: [
+                          const Icon(Icons.store_mall_directory, size: 12, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              product.fields.storeName,
+                              style: const TextStyle(fontSize: 10, color: Colors.grey),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      // Harga
+                      Text(
+                        "Rp ${product.fields.price}",
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1B2B5A),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      // Rating & Terjual
+                      Row(
+                        children: [
+                          const Icon(Icons.star, size: 12, color: Colors.amber),
+                          const SizedBox(width: 2),
+                          Text(product.fields.rating, style: const TextStyle(fontSize: 10)),
+                          const Spacer(),
+                          Text(
+                            "${product.fields.unitsSold}",
+                            style: const TextStyle(fontSize: 10, color: Colors.black54),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ),
 
-                const SizedBox(height: 6),
-
-                // ===== RATING & JUMLAH TERJUAL (UPDATED) =====
-                Row(
-                  children: [
-                    const Icon(Icons.star, size: 12, color: Colors.amber),
-                    const SizedBox(width: 2),
-                    Text(product.fields.rating, style: const TextStyle(fontSize: 11)),
-                    const Spacer(),
-                    Text(
-                      "${product.fields.unitsSold}",
-                      style: const TextStyle(fontSize: 11, color: Colors.black54),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 14),
-
-                // ===== BUTTONS SECTION =====
-                // Jika guest (belum login) → tampilkan tombol "Login untuk Beli"
-                if (!loggedIn)
-                  // =====PERUBAHAN BARU=====
-                  SizedBox(
-                    width: double.infinity,
-                    height: 40,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        // Arahkan ke halaman login — gunakan route named '/login' (suaikan jika route berbeda)
-                        Navigator.pushNamed(context, '/login');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF0EBFF), // ungu-pucat background
-                        foregroundColor: const Color(0xFF6B46C1), // teks ungu
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  // Tombol (Spacer agar selalu di bawah)
+                  const SizedBox(height: 4),
+                  if (!loggedIn)
+                    // =====PERUBAHAN BARU=====
+                    SizedBox(
+                      width: double.infinity,
+                      height: 32, // Tinggi tombol fix
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // Arahkan ke halaman login — gunakan route named '/login' (suaikan jika route berbeda)
+                          Navigator.pushNamed(context, '/login');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF0EBFF), // ungu-pucat background
+                          foregroundColor: const Color(0xFF6B46C1), // teks ungu
+                          elevation: 0,
+                          padding: EdgeInsets.zero, // Hilangkan padding internal
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        child: const Text("Login untuk Beli", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                       ),
-                      child: const Text(
-                        "Login untuk Beli",
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  )
-                // =====PERUBAHAN BARU=====
-                else if (isAdmin)
-                  _buildAdminButtons(context, request)
-                else
-                  _buildUserButtons(context, request),
-              ],
+                    )
+                    // =====PERUBAHAN BARU=====
+                  else if (isAdmin)
+                    _buildAdminButtons(context, request)
+                  else
+                    _buildUserButtons(context, request),
+                ],
+              ),
             ),
           ),
         ],
@@ -193,15 +190,13 @@ class ProductEntryCard extends StatelessWidget {
   // ===================================================
   Widget _buildUserButtons(BuildContext context, CookieRequest request) {
     return Column(
-      mainAxisSize: MainAxisSize.min, // supaya tidak nambah tinggi kosong
       children: [
-        // 1. View Product (via DIALOG)
         SizedBox(
           width: double.infinity,
-          height: 32,
+          height: 28, // Tombol lebih tipis
           child: ElevatedButton.icon(
-            icon: const Icon(Icons.visibility, size: 14),
-            label: const Text("View Product", style: TextStyle(fontSize: 12)),
+            icon: const Icon(Icons.visibility, size: 12),
+            label: const Text("View Product", style: TextStyle(fontSize: 11)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.purple,
               foregroundColor: Colors.white,
@@ -210,68 +205,32 @@ class ProductEntryCard extends StatelessWidget {
             onPressed: () {
               showDialog(
                 context: context,
-                builder: (context) => ProductDetailDialog(
-                  product: product,
-                  onRefresh: onRefresh,
-                ),
+                builder: (context) => ProductDetailDialog(product: product, onRefresh: onRefresh),
               );
             },
           ),
         ),
-
-        const SizedBox(height: 6),
-
-        // 2. Add to Cart
+        const SizedBox(height: 4),
         SizedBox(
           width: double.infinity,
-          height: 32,
+          height: 28,
           child: ElevatedButton.icon(
-            icon: const Icon(Icons.add, size: 14),
-            label: const Text("Keranjang", style: TextStyle(fontSize: 12)),
+            icon: const Icon(Icons.add, size: 12),
+            label: const Text("Keranjang", style: TextStyle(fontSize: 11)),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF3F51B5),
               foregroundColor: Colors.white,
               padding: EdgeInsets.zero,
             ),
             onPressed: () async {
-              final response = await request.post(
+               // ... logic add cart ...
+               final response = await request.post(
                 "http://127.0.0.1:8000/store/product/${product.pk}/add-to-cart/",
                 {"quantity": "1"},
               );
-
-              if (context.mounted) {
-                if (response['success'] == true) {
+              if (context.mounted && response['success'] == true) {
                   onRefresh();
-
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      backgroundColor: Colors.white,
-                      surfaceTintColor: Colors.white,
-                      title: const Row(
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.green, size: 28),
-                          SizedBox(width: 10),
-                          Text(
-                            "Berhasil Ditambahkan!",
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      content: Text('"${product.fields.name}" ditambahkan ke keranjang.'),
-                      actions: [
-                        OutlinedButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text("Tutup", style: TextStyle(color: Colors.black)),
-                        ),
-                      ],
-                    ),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Gagal menambahkan ke keranjang.")),
-                  );
-                }
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Berhasil masuk keranjang!")));
               }
             },
           ),
@@ -284,114 +243,58 @@ class ProductEntryCard extends StatelessWidget {
   // =============== ADMIN BUTTONS (UPDATED) ===========
   // ===================================================
   Widget _buildAdminButtons(BuildContext context, CookieRequest request) {
-    return Column(
-      mainAxisSize: MainAxisSize.min, // biar tidak nambah space kosong
-      children: [
-        // VIEW PRODUCT
-        SizedBox(
-          width: double.infinity,
-          height: 32,
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.visibility, size: 14),
-            label: const Text("View Product", style: TextStyle(fontSize: 12)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.purple,
-              foregroundColor: Colors.white,
-              padding: EdgeInsets.zero,
-            ),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => ProductDetailDialog(
-                  product: product,
-                  onRefresh: onRefresh,
-                ),
-              );
-            },
-          ),
-        ),
-
-        const SizedBox(height: 6),
-
-        // EDIT + DELETE (UPDATED → 1 ROW)
-        Row(
-          children: [
-            // EDIT
-            Expanded(
-              child: SizedBox(
-                height: 32,
+      // ... (Sesuaikan tinggi tombol jadi 28 dan font 11 agar muat) ...
+      // Sama seperti logika _buildUserButtons di atas
+      return Column(
+        children: [
+            // View Product
+            SizedBox(
+                width: double.infinity, height: 28,
                 child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[700],
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: const Text("Edit", style: TextStyle(fontSize: 12)),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => ProductFormDialog(
-                        product: product,
-                        onSave: onRefresh,
-                      ),
-                    );
-                  },
-                ),
-              ),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.purple, foregroundColor: Colors.white, padding: EdgeInsets.zero),
+                    onPressed: (){
+                        showDialog(
+                            context: context,
+                            builder: (context) => ProductDetailDialog(product: product, onRefresh: onRefresh),
+                        );
+                    }, 
+                    child: const Text("View Product", style: TextStyle(fontSize: 11))
+                )
             ),
-
-            const SizedBox(width: 8),
-
-            // DELETE
-            Expanded(
-              child: SizedBox(
-                height: 32,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red[700],
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: const Text("Delete", style: TextStyle(fontSize: 12)),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text("Konfirmasi Hapus"),
-                        content: const Text("Apakah Anda yakin menghapus produk ini?"),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text("Batal", style: TextStyle(color: Colors.grey)),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              final response = await request.post(
-                                "http://127.0.0.1:8000/store/product/${product.pk}/delete/",
-                                {},
-                              );
-
-                              if (response['success'] == true) {
-                                onRefresh();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text("Produk berhasil dihapus!")),
-                                );
-                              }
-                            },
-                            child: const Text("Ya, hapus"),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
+            const SizedBox(height: 4),
+            Row(
+                children: [
+                    Expanded(child: SizedBox(height: 28, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.blue[700], foregroundColor: Colors.white, padding: EdgeInsets.zero), onPressed: (){
+                        showDialog(context: context, builder: (context) => ProductFormDialog(product: product, onSave: onRefresh));
+                    }, child: const Text("Edit", style: TextStyle(fontSize: 11))))),
+                    const SizedBox(width: 4),
+                    Expanded(child: SizedBox(height: 28, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red[700], foregroundColor: Colors.white, padding: EdgeInsets.zero), onPressed: (){
+                        showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                                title: const Text("Konfirmasi Hapus"),
+                                content: const Text("Yakin hapus produk ini?"),
+                                actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
+                                    ElevatedButton(
+                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                        onPressed: () async {
+                                            Navigator.pop(ctx);
+                                            final response = await request.post("http://127.0.0.1:8000/store/product/${product.pk}/delete/", {});
+                                            if (response['success'] == true) {
+                                                onRefresh();
+                                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Produk dihapus!")));
+                                            }
+                                        },
+                                        child: const Text("Hapus", style: TextStyle(color: Colors.white)),
+                                    ),
+                                ],
+                            ),
+                        );
+                    }, child: const Text("Delete", style: TextStyle(fontSize: 11))))),
+                ]
+            )
+        ]
+      );
   }
 }
