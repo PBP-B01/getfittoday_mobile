@@ -10,6 +10,7 @@ import 'package:getfittoday_mobile/widgets/site_navbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 
 class BookingReservationPage extends StatefulWidget {
   const BookingReservationPage({super.key});
@@ -34,10 +35,14 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   String? _selectedTimeLabel;
   String _selectedDuration = '1 Jam';
   FitnessSpot? _selectedLocation;
+  bool _filterTopRated = false;
+  bool _sortByNearest = true;
+  Position? _userPosition;
 
   late Future<List<Reservation>> _reservationsFuture;
   late Future<void> _locationsFuture;
   bool _futureInitialized = false;
+  List<FitnessSpot> _allLocations = const [];
   List<FitnessSpot> _locations = const [];
   List<Reservation> _myReservations = const [];
 
@@ -101,22 +106,300 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
 
   Future<void> _loadLocations(CookieRequest request) async {
     final results = await _locationService.fetchFitnessSpots(request);
-    results.sort(_locationComparator);
+    List<FitnessSpot> enriched = results;
+    try {
+      _userPosition ??= await _getUserPosition();
+      if (_userPosition != null) {
+        enriched = results
+            .map((spot) => _withDistanceFromUser(spot, _userPosition!))
+            .toList();
+      }
+    } catch (_) {
+      // Jika gagal dapat lokasi, gunakan data apa adanya.
+    }
+    enriched.sort(_locationComparator);
     if (!mounted) return;
     setState(() {
-      _locations = results;
+      _allLocations = enriched;
+      // Saat pertama kali load, jangan aktifkan filter rating dulu.
+      _locations = _applyLocationFilters(enriched, topRatedOnly: _filterTopRated);
     });
   }
 
   int _locationComparator(FitnessSpot a, FitnessSpot b) {
-    final aDist = a.distanceKm;
-    final bDist = b.distanceKm;
-    if (aDist != null && bDist != null) {
-      return aDist.compareTo(bDist);
+    if (_sortByNearest) {
+      final aDist = a.distanceKm;
+      final bDist = b.distanceKm;
+      if (aDist != null && bDist != null) {
+        return aDist.compareTo(bDist);
+      }
+      if (aDist != null) return -1;
+      if (bDist != null) return 1;
     }
-    if (aDist != null) return -1;
-    if (bDist != null) return 1;
     return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  }
+
+  List<FitnessSpot> _applyLocationFilters(
+    List<FitnessSpot> source, {
+    required bool topRatedOnly,
+  }) {
+    var list = List<FitnessSpot>.from(source);
+    if (topRatedOnly) {
+      list = list.where((loc) => (loc.rating ?? 0) >= 4.5).toList();
+    }
+    list.sort(_locationComparator);
+    return list;
+  }
+
+  Future<Position?> _getUserPosition() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return null;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    try {
+      return await Geolocator.getCurrentPosition();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  FitnessSpot _withDistanceFromUser(FitnessSpot spot, Position position) {
+    final meters = Geolocator.distanceBetween(
+      position.latitude,
+      position.longitude,
+      spot.latitude,
+      spot.longitude,
+    );
+    final km = meters / 1000.0;
+
+    return FitnessSpot(
+      name: spot.name,
+      latitude: spot.latitude,
+      longitude: spot.longitude,
+      address: spot.address,
+      rating: spot.rating,
+      placeId: spot.placeId,
+      ratingCount: spot.ratingCount,
+      website: spot.website,
+      phoneNumber: spot.phoneNumber,
+      types: spot.types,
+      distanceKm: km,
+      description: spot.description,
+    );
+  }
+
+  void _showLocationFilterSheet() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        bool sortNearest = _sortByNearest;
+        bool topRated = _filterTopRated;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final media = MediaQuery.of(context);
+            final maxWidth =
+                media.size.width > 520 ? 420.0 : media.size.width * 0.9;
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: Material(
+                    color: Colors.white,
+                    elevation: 10,
+                    borderRadius: BorderRadius.circular(18),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 18, 24, 20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Filter lokasi',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: inputTextColor,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  size: 20,
+                                  color: inkWeakColor,
+                                ),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => Navigator.of(dialogContext).pop(),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Urutkan',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: inkWeakColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  setModalState(() {
+                                    sortNearest = !sortNearest;
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: sortNearest
+                                        ? primaryNavColor
+                                        : Colors.black26,
+                                  ),
+                                  backgroundColor: sortNearest
+                                      ? primaryNavColor.withOpacity(0.06)
+                                      : Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                icon: Icon(
+                                  Icons.near_me,
+                                  size: 18,
+                                  color: sortNearest
+                                      ? primaryNavColor
+                                      : inkWeakColor,
+                                ),
+                                label: Text(
+                                  'Terdekat',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: sortNearest
+                                        ? primaryNavColor
+                                        : inputTextColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Rating',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: inkWeakColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  setModalState(() {
+                                    topRated = !topRated;
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: topRated
+                                        ? primaryNavColor
+                                        : Colors.black26,
+                                  ),
+                                  backgroundColor: topRated
+                                      ? primaryNavColor.withOpacity(0.06)
+                                      : Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                              ),
+                              icon: Icon(
+                                Icons.star,
+                                size: 18,
+                                color: topRated
+                                    ? Colors.amber[700]
+                                    : inkWeakColor,
+                              ),
+                              label: Text(
+                                  '4.5+',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: topRated
+                                        ? primaryNavColor
+                                        : inputTextColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _sortByNearest = sortNearest;
+                                    _filterTopRated = topRated;
+                                    _locations = _applyLocationFilters(
+                                      _allLocations,
+                                      topRatedOnly: topRated,
+                                    );
+                                  });
+                                  // Paksa RawAutocomplete menghitung ulang opsi
+                                  // berdasarkan daftar lokasi terbaru.
+                                  _locationController.value =
+                                      _locationController.value.copyWith(
+                                    text: _locationController.text,
+                                  );
+                                  Navigator.of(dialogContext).pop();
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryNavColor,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text('Terapkan'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   int _durationInMinutes() {
@@ -349,6 +632,21 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                            foregroundColor: primaryNavColor,
+                          ),
+                          onPressed: () {
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            } else {
+                              Navigator.pushReplacementNamed(context, '/home');
+                            }
+                          },
+                          icon: const Icon(Icons.arrow_back_ios_new, size: 16),
+                          label: const Text('Back'),
+                        ),
+                        const SizedBox(height: 4),
                         const _HeroInfoCard(),
                         const SizedBox(height: 16),
                         Center(
@@ -444,21 +742,73 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                             );
                                           }
 
-                                          return LocationSearchField(
-                                            controller: _locationController,
-                                            focusNode: _locationFocusNode,
-                                            locations: _locations,
-                                            onSelected: (loc) {
-                                              setState(() {
-                                                _selectedLocation = loc;
-                                                if (loc == null) {
-                                                  _selectedTime = null;
-                                                  _selectedTimeLabel = null;
-                                                  _timeController.clear();
-                                                }
-                                              });
-                                            },
-                                            comparator: _locationComparator,
+                                          return Row(
+                                            children: [
+                                              Expanded(
+                                                child: LocationSearchField(
+                                                  controller: _locationController,
+                                                  focusNode: _locationFocusNode,
+                                                  locations: _locations,
+                                                  onSelected: (loc) {
+                                                    setState(() {
+                                                      _selectedLocation = loc;
+                                                      if (loc == null) {
+                                                        _selectedTime = null;
+                                                        _selectedTimeLabel = null;
+                                                        _timeController.clear();
+                                                      }
+                                                    });
+                                                  },
+                                                  comparator: _locationComparator,
+                                                  filterTopRated: _filterTopRated,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              SizedBox(
+                                                height: 48,
+                                                child: OutlinedButton(
+                                                  onPressed: _showLocationFilterSheet,
+                                                  style: OutlinedButton.styleFrom(
+                                                    side: BorderSide(
+                                                      color: (_filterTopRated || !_sortByNearest)
+                                                          ? primaryNavColor
+                                                          : Colors.black87,
+                                                    ),
+                                                    backgroundColor:
+                                                        (_filterTopRated || !_sortByNearest)
+                                                            ? primaryNavColor.withOpacity(0.06)
+                                                            : Colors.white,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(12),
+                                                    ),
+                                                    padding: const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.filter_list,
+                                                        size: 20,
+                                                        color: (_filterTopRated || !_sortByNearest)
+                                                            ? primaryNavColor
+                                                            : inputTextColor,
+                                                      ),
+                                                      const SizedBox(width: 6),
+                                                      Text(
+                                                        'Filter',
+                                                        style: GoogleFonts.inter(
+                                                          fontSize: 13,
+                                                          fontWeight: FontWeight.w700,
+                                                          color: inputTextColor,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           );
                                         },
                                       ),
@@ -686,9 +1036,9 @@ class _CalendarCard extends StatelessWidget {
 
     final content = Theme(
       data: theme.copyWith(
-        useMaterial3: false,
+        useMaterial3: true,
         colorScheme: theme.colorScheme.copyWith(
-          primary: primaryNavColor,
+          primary: primaryNavDarkerColor,
           onPrimary: Colors.white,
           surface: Colors.white,
           onSurface: inputTextColor,
@@ -698,6 +1048,9 @@ class _CalendarCard extends StatelessWidget {
           dayBackgroundColor: MaterialStateProperty.resolveWith((states) {
             if (states.contains(MaterialState.selected)) {
               return primaryNavDarkerColor;
+            }
+            if (states.contains(MaterialState.hovered)) {
+              return primaryNavColor.withOpacity(0.1);
             }
             return Colors.transparent;
           }),
@@ -717,7 +1070,7 @@ class _CalendarCard extends StatelessWidget {
             return null;
           }),
           todayBorder: BorderSide(
-            color: primaryNavColor.withOpacity(0.1),
+            color: primaryNavColor.withOpacity(0.2),
           ),
           todayForegroundColor: MaterialStateProperty.all(primaryNavColor),
         ),
@@ -989,7 +1342,7 @@ class _ReservationsSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Reservasi Saya',
+              'Upcoming Bookings',
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -1021,7 +1374,10 @@ class _ReservationsSection extends StatelessWidget {
                   );
                 }
 
-                final reservations = snapshot.data ?? [];
+                final allReservations = snapshot.data ?? [];
+                final reservations = allReservations
+                    .where((r) => r.isOngoing)
+                    .toList();
                 if (reservations.isEmpty) {
                   return Padding(
                     padding: const EdgeInsets.all(12.0),
@@ -1034,7 +1390,7 @@ class _ReservationsSection extends StatelessWidget {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Belum ada booking. Yuk mulai reservasi pertama kamu!',
+                            'Belum ada booking aktif. Yuk mulai reservasi pertama kamu!',
                             style: GoogleFonts.inter(
                               fontWeight: FontWeight.w600,
                               color: inkWeakColor,
@@ -1195,6 +1551,8 @@ class LocationSearchField extends StatelessWidget {
   final List<FitnessSpot> locations;
   final ValueChanged<FitnessSpot?>? onSelected;
   final int Function(FitnessSpot, FitnessSpot) comparator;
+  final bool filterTopRated;
+  final double minRating;
 
   const LocationSearchField({
     super.key,
@@ -1203,6 +1561,8 @@ class LocationSearchField extends StatelessWidget {
     required this.locations,
     required this.onSelected,
     required this.comparator,
+    this.filterTopRated = false,
+    this.minRating = 4.5,
   });
 
   @override
@@ -1212,7 +1572,7 @@ class LocationSearchField extends StatelessWidget {
       focusNode: focusNode,
       optionsBuilder: (textEditingValue) {
         final query = textEditingValue.text.trim().toLowerCase();
-        final filtered = query.isEmpty
+        var filtered = query.isEmpty
             ? List<FitnessSpot>.from(locations)
             : locations
                 .where(
@@ -1281,6 +1641,7 @@ class LocationSearchField extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final loc = opts[index];
                   final distance = _distanceText(loc.distanceKm);
+                  final rating = loc.rating;
                   return InkWell(
                     onTap: () => onSelectedOption(loc),
                     child: Padding(
@@ -1294,12 +1655,32 @@ class LocationSearchField extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  loc.name,
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: inputTextColor,
-                                  ),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        loc.name,
+                                        style: theme.textTheme.titleMedium
+                                            ?.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          color: inputTextColor,
+                                        ),
+                                      ),
+                                    ),
+                                    if (distance != null) ...[
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        distance,
+                                        style:
+                                            theme.textTheme.bodySmall?.copyWith(
+                                          color:
+                                              inkWeakColor.withOpacity(0.7),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                                 if (loc.address != null &&
                                     loc.address!.isNotEmpty)
@@ -1312,17 +1693,32 @@ class LocationSearchField extends StatelessWidget {
                                       ),
                                     ),
                                   ),
+                                if (rating != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2.0),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.star,
+                                          size: 14,
+                                          color: Colors.amber,
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          rating.toStringAsFixed(1),
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                            color: inputTextColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
-                          if (distance != null)
-                            Text(
-                              distance,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: inkWeakColor,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
                         ],
                       ),
                     ),

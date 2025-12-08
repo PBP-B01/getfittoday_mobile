@@ -20,7 +20,6 @@ class ReservationService {
         return sortReservationsByStatusAndTime(reservations);
       } catch (e) {
         errors.add('$url -> $e');
-        // Try next endpoint; continue loop.
       }
     }
 

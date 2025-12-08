@@ -130,7 +130,6 @@ class SiteNavBar extends StatelessWidget {
         try {
           await request.logout('$djangoBaseUrl/auth/logout/');
         } catch (_) {
-          // ignore logout exception, still navigate
         }
         if (!context.mounted) return;
         ScaffoldMessenger.of(context)
@@ -366,7 +365,7 @@ class SiteNavBar extends StatelessWidget {
                     ],
                   ),
                 const SizedBox(width: 16),
-            PopupMenuButton<_ProfileMenuAction>(
+                PopupMenuButton<_ProfileMenuAction>(
               tooltip: 'Profile',
               offset: const Offset(0, 10),
               shape: RoundedRectangleBorder(
@@ -403,7 +402,7 @@ class SiteNavBar extends StatelessWidget {
                 const PopupMenuItem<_ProfileMenuAction>(
                   value: _ProfileMenuAction.bookings,
                   child: Text(
-                    'My bookings',
+                    'My Bookings',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: primaryNavColor,
