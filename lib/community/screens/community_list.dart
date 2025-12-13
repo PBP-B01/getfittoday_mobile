@@ -38,13 +38,12 @@ class _CommunityListPageState extends State<CommunityListPage> {
     return listCommunity;
   }
 
-  // Fungsi navigasi ke form (dipakai di tombol baru)
   void _navigateToAddForm() async {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const CommunityFormPage()),
     );
-    setState(() {}); // Refresh setelah balik dari form
+    setState(() {}); 
   }
 
   @override
@@ -52,151 +51,167 @@ class _CommunityListPageState extends State<CommunityListPage> {
     final request = context.watch<CookieRequest>();
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(
-        children: [
-          const SiteNavBar(active: NavDestination.community),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    // --- SEARCH BAR + ADD BUTTON (SEJAJAR) ---
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            onChanged: (value) {
-                              setState(() {
-                                _searchQuery = value.toLowerCase();
-                              });
-                            },
-                            decoration: InputDecoration(
-                              hintText: 'Search community...',
-                              hintStyle: GoogleFonts.inter(color: Colors.grey),
-                              prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12), // Lebih bulat
-                                borderSide: BorderSide(color: Colors.grey.shade300),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade300),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // TOMBOL ADD (+) PINDAH KE SINI
-                        InkWell(
-                          onTap: _navigateToAddForm,
-                          borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: primaryNavColor,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(Icons.add, color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // --- TOGGLE BUTTONS ---
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(12), // Konsisten bulatnya
-                      ),
-                      child: Row(
+      backgroundColor: Colors.transparent, 
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFEAF2FF), 
+              Color(0xFFBFD6F2), 
+            ],
+          ),
+        ),
+        child: Column(
+          children: [
+            const SiteNavBar(active: NavDestination.community),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Row(
                         children: [
-                          _buildToggleButton("All Communities", isAllCommunities, () {
-                            setState(() => isAllCommunities = true);
-                          }),
-                          _buildToggleButton("My Communities", !isAllCommunities, () {
-                            setState(() => isAllCommunities = false);
-                          }),
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (value) {
+                                setState(() {
+                                  _searchQuery = value.toLowerCase();
+                                });
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'Search community name or sport...',
+                                hintStyle: GoogleFonts.inter(color: Colors.grey),
+                                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none, 
+                                ),
+                                filled: true,
+                                fillColor: Colors.white, 
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          InkWell(
+                            onTap: _navigateToAddForm,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: primaryNavColor, 
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ]
+                              ),
+                              child: const Icon(Icons.add, color: Colors.white),
+                            ),
+                          ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // --- LIST DATA ---
-                    FutureBuilder(
-                      future: fetchCommunities(request),
-                      builder: (context, AsyncSnapshot snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Padding(
-                            padding: EdgeInsets.only(top: 40),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
-                        } else if (snapshot.hasError) {
-                          return Center(child: Text("Error: ${snapshot.error}"));
-                        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.only(top: 40),
-                            child: Text("Belum ada komunitas."),
-                          );
-                        } else {
-                          List<Community> allData = snapshot.data!;
-                          List<Community> tabFiltered;
-                          if (isAllCommunities) {
-                            tabFiltered = allData;
-                          } else {
-                            tabFiltered = allData.where((c) => c.isMember).toList();
-                          }
+                      // --- TOGGLE BUTTONS ---
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.6), 
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withOpacity(0.5)),
+                        ),
+                        child: Row(
+                          children: [
+                            _buildToggleButton("All Communities", isAllCommunities, () {
+                              setState(() => isAllCommunities = true);
+                            }),
+                            _buildToggleButton("My Communities", !isAllCommunities, () {
+                              setState(() => isAllCommunities = false);
+                            }),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
-                          List<Community> finalData;
-                          if (_searchQuery.isEmpty) {
-                            finalData = tabFiltered;
-                          } else {
-                            finalData = tabFiltered.where((c) {
-                              final name = c.name.toLowerCase();
-                              final category = (c.category ?? "").toLowerCase();
-                              return name.contains(_searchQuery) || category.contains(_searchQuery);
-                            }).toList();
-                          }
-
-                          if (finalData.isEmpty) {
+                      // --- LIST DATA ---
+                      FutureBuilder(
+                        future: fetchCommunities(request),
+                        builder: (context, AsyncSnapshot snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Padding(
+                              padding: EdgeInsets.only(top: 40),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          } else if (snapshot.hasError) {
+                            return Center(child: Text("Error: ${snapshot.error}"));
+                          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
                             return Padding(
                               padding: const EdgeInsets.only(top: 40),
                               child: Text(
-                                _searchQuery.isNotEmpty 
-                                    ? "Tidak ditemukan."
-                                    : (isAllCommunities ? "Belum ada komunitas." : "Kamu belum bergabung."),
-                                style: GoogleFonts.inter(color: Colors.grey),
+                                "No communities available.",
+                                style: GoogleFonts.inter(color: Colors.grey[700]),
                               ),
                             );
-                          }
+                          } else {
+                            List<Community> allData = snapshot.data!;
+                            List<Community> tabFiltered;
+                            if (isAllCommunities) {
+                              tabFiltered = allData;
+                            } else {
+                              tabFiltered = allData.where((c) => c.isMember).toList();
+                            }
 
-                          return ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: finalData.length, 
-                            itemBuilder: (_, index) {
-                              Community community = finalData[index];
-                              return _buildCommunityCard(context, community);
-                            },
-                          );
-                        }
-                      },
-                    ),
-                  ],
+                            List<Community> finalData;
+                            if (_searchQuery.isEmpty) {
+                              finalData = tabFiltered;
+                            } else {
+                              finalData = tabFiltered.where((c) {
+                                final name = c.name.toLowerCase();
+                                final category = (c.category ?? "").toLowerCase();
+                                return name.contains(_searchQuery) || category.contains(_searchQuery);
+                              }).toList();
+                            }
+
+                            if (finalData.isEmpty) {
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 40),
+                                child: Text(
+                                  _searchQuery.isNotEmpty 
+                                      ? "No results found."
+                                      : (isAllCommunities ? "No communities available." : "You haven't joined any community yet."),
+                                  style: GoogleFonts.inter(color: Colors.grey[700]),
+                                ),
+                              );
+                            }
+
+                            return ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: finalData.length, 
+                              itemBuilder: (_, index) {
+                                Community community = finalData[index];
+                                return _buildCommunityCard(context, community);
+                              },
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-      // FloatingActionButton sudah dihapus dari sini
     );
   }
 
@@ -214,7 +229,7 @@ class _CommunityListPageState extends State<CommunityListPage> {
             text,
             textAlign: TextAlign.center,
             style: GoogleFonts.inter(
-              color: isActive ? Colors.white : Colors.grey,
+              color: isActive ? Colors.white : Colors.grey[700],
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -234,12 +249,12 @@ class _CommunityListPageState extends State<CommunityListPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(20), 
+        border: Border.all(color: const Color(0xFFC8DDF6)), 
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            color: const Color(0xFF0D2B3F).withOpacity(0.08), 
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -248,23 +263,23 @@ class _CommunityListPageState extends State<CommunityListPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start, // Biar sejajar atas
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(50),
                 child: Container(
                   width: 60,
                   height: 60,
-                  color: Colors.grey.shade300,
+                  color: Colors.grey.shade100,
                   child: imageUrl != null
                       ? Image.network(
                           imageUrl,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
-                            return const Icon(Icons.groups, size: 30, color: Colors.white);
+                            return const Icon(Icons.groups, size: 30, color: Colors.grey);
                           },
                         )
-                      : const Icon(Icons.groups, size: 30, color: Colors.white),
+                      : const Icon(Icons.groups, size: 30, color: Colors.grey),
                 ),
               ),
               const SizedBox(width: 16),
@@ -275,20 +290,18 @@ class _CommunityListPageState extends State<CommunityListPage> {
                     Text(
                       community.name,
                       style: GoogleFonts.inter(
-                        fontSize: 18, // Sedikit diperbesar
+                        fontSize: 18, 
                         fontWeight: FontWeight.bold,
-                        color: inputTextColor,
+                        color: const Color(0xFF1B2B5A), 
                       ),
                     ),
                     const SizedBox(height: 4),
-                    // 👇 INI DIA! DESKRIPSI SINGKAT (TAGLINE) 👇
                     Text(
                       community.shortDescription.isNotEmpty ? community.shortDescription : community.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600),
+                      style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF6B7A99)),
                     ),
-                    // 👆 ----------------------------------- 👆
                   ],
                 ),
               ),
@@ -297,18 +310,18 @@ class _CommunityListPageState extends State<CommunityListPage> {
           const SizedBox(height: 16),
           Row(
             children: [
-              const Icon(Icons.person_outline, size: 18, color: Colors.grey),
+              const Icon(Icons.person_outline, size: 18, color: Color(0xFF6B7A99)),
               const SizedBox(width: 6),
               Text(
                 "${community.membersCount} Members",
-                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey.shade700),
+                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF6B7A99)),
               ),
               const SizedBox(width: 16),
-              const Icon(Icons.sports_soccer, size: 18, color: Colors.grey), // Bisa diganti icon dinamis nanti
+              const Icon(Icons.fitness_center, size: 18, color: Color(0xFF6B7A99)), 
               const SizedBox(width: 6),
               Text(
                 community.category ?? "General",
-                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey.shade700),
+                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF6B7A99)),
               ),
             ],
           ),
@@ -328,6 +341,7 @@ class _CommunityListPageState extends State<CommunityListPage> {
                 side: const BorderSide(color: primaryNavColor, width: 1.5),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
+                backgroundColor: Colors.white, 
               ),
               child: Text(
                 "View",

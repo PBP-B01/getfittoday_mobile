@@ -3,8 +3,6 @@ import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-// Pastikan import community_form.dart ada di sini
 import 'community_form.dart'; 
 
 class CommunityDetailPage extends StatefulWidget {
@@ -55,7 +53,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
         fetchDetail(request);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(hasJoined ? "Berhasil keluar." : "Berhasil bergabung!"),
+            content: Text(hasJoined ? "Successfully left." : "Successfully joined!"),
             backgroundColor: hasJoined ? Colors.orange : Colors.green,
           ),
         );
@@ -65,15 +63,14 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     }
   }
 
-  // --- FUNGSI ADMIN ---
   Future<void> deleteCommunity() async {
     final request = context.read<CookieRequest>();
     try {
       final response = await request.post('$djangoBaseUrl/community/api/delete/${widget.communityId}/', {});
       if (mounted) {
         if (response['status'] == 'success') {
-          Navigator.pop(context); // Cukup sekali pop (Tutup Detail Page)
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Komunitas dihapus."), backgroundColor: Colors.red));
+          Navigator.pop(context); 
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Community deleted successfully."), backgroundColor: Colors.red));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message'])));
         }
@@ -93,7 +90,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
       if (mounted) {
         if (response['status'] == 'success') {
           fetchDetail(request); 
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Berhasil menjadikan admin!"), backgroundColor: Colors.green));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Successfully promoted to Admin!"), backgroundColor: Colors.green));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message'])));
         }
@@ -107,20 +104,34 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Hapus Komunitas?"),
-        content: const Text("Tindakan ini tidak bisa dibatalkan. Semua data akan hilang."),
+        title: const Text("Delete Community?"),
+        content: const Text("This action cannot be undone. All data will be lost."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
               deleteCommunity();
             },
-            child: const Text("Hapus", style: TextStyle(color: Colors.red)),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
+  }
+
+  String formatDate(String? dateString) {
+    if (dateString == null) return "-";
+    try {
+      DateTime date = DateTime.parse(dateString);
+      const List<String> months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+      return "${months[date.month - 1]} ${date.year}";
+    } catch (e) {
+      return dateString;
+    }
   }
 
   @override
@@ -141,6 +152,8 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
         ? communityData!['fitness_spot']['name'] 
         : "Online";
     
+    final String established = formatDate(communityData?['created_at']);
+
     final String? imagePath = communityData?['image']; 
     final bool hasJoined = communityData?['has_joined'] ?? false;
     final bool isAdmin = communityData?['is_admin'] ?? false;
@@ -149,12 +162,9 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     final List<dynamic> membersList = communityData?['members'] ?? [];
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFBFD6F2),
       body: Stack(
         children: [
-          // ------------------------------------------------
-          // LAYER 1: BACKGROUND HEADER IMAGE
-          // ------------------------------------------------
           SizedBox(
             height: 250,
             width: double.infinity,
@@ -179,35 +189,105 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             color: Colors.black.withOpacity(0.4), 
           ),
 
-          // ------------------------------------------------
-          // LAYER 2: CONTENT CARD
-          // ------------------------------------------------
           SingleChildScrollView(
             child: Column(
               children: [
-                const SizedBox(height: 200), // Memberi ruang untuk Header Image
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle),
+                              child: IconButton(
+                                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              "Detail Community",
+                              style: GoogleFonts.inter(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                shadows: [
+                                  BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 4, offset: const Offset(0, 2))
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        if (isAdmin)
+                          Container(
+                            decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle),
+                            child: PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert, color: Colors.white),
+                              onSelected: (value) async {
+                                if (value == 'edit') {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => CommunityFormPage(existingData: communityData),
+                                    ),
+                                  );
+                                  if (mounted) {
+                                    final request = context.read<CookieRequest>();
+                                    fetchDetail(request);
+                                  }
+                                } else if (value == 'delete') {
+                                  showDeleteConfirmation();
+                                }
+                              },
+                              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                const PopupMenuItem<String>(
+                                  value: 'edit',
+                                  child: ListTile(leading: Icon(Icons.edit), title: Text('Edit Community')),
+                                ),
+                                const PopupMenuItem<String>(
+                                  value: 'delete',
+                                  child: ListTile(leading: Icon(Icons.delete, color: Colors.red), title: Text('Delete Community', style: TextStyle(color: Colors.red))),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          const SizedBox(width: 48), 
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 130), 
+
                 Container(
                   width: double.infinity,
                   decoration: const BoxDecoration(
-                    color: Colors.white,
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFFEAF2FF), Color(0xFFBFD6F2)],
+                    ),
                     borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                   ),
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header Info (Avatar + Judul + Tagline)
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 👇 INI PERUBAHAN UTAMA: MEMBERI ELEVATION PADA AVATAR 👇
                           Container(
-                            width: 70, // Ukuran container sedikit lebih besar
+                            width: 70, 
                             height: 70,
                             decoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
-                              boxShadow: [ // Menambahkan shadow agar terlihat melayang
+                              boxShadow: [ 
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.15),
                                   blurRadius: 10,
@@ -215,11 +295,11 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                                 ),
                               ],
                             ),
-                            padding: const EdgeInsets.all(4), // Efek border putih
+                            padding: const EdgeInsets.all(4), 
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(50),
                               child: Container(
-                                width: 60, // Ukuran gambar asli
+                                width: 60,
                                 height: 60,
                                 color: Colors.grey.shade200,
                                 child: (imagePath != null && imagePath.isNotEmpty)
@@ -232,7 +312,6 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                               ),
                             ),
                           ),
-                          // 👆 --------------------------------------------------- 👆
                           const SizedBox(width: 16),
                           Expanded(
                             child: Column(
@@ -249,7 +328,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                                     const SizedBox(width: 4),
                                     Text("$memberCount Members", style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade700)),
                                     const SizedBox(width: 16),
-                                    const Icon(Icons.sports_soccer, size: 16, color: Colors.grey),
+                                    const Icon(Icons.fitness_center, size: 16, color: Colors.grey),
                                     const SizedBox(width: 4),
                                     Text(category, style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade700)),
                                   ],
@@ -261,7 +340,6 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                       ),
                       const SizedBox(height: 24),
 
-                      // TOMBOL JOIN / ADMIN (PRIMARY)
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -279,7 +357,6 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                         ),
                       ),
                       
-                      // TOMBOL EVENT (SECONDARY)
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
@@ -301,7 +378,6 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                       ),
                       const SizedBox(height: 30),
 
-                      // TAB MENU NAVIGASI
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
@@ -336,72 +412,15 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                           }),
                         ),
                       ),
+                      
+                      const Divider(color: Colors.white70, thickness: 2), 
                       const SizedBox(height: 24),
 
-                      // KONTEN TAB (Dinamis)
-                      _buildTabContent(description, category, fitnessSpotName, contact, rawSchedule, membersList, isAdmin),
+                      _buildTabContent(description, category, fitnessSpotName, contact, rawSchedule, membersList, isAdmin, established),
                     ],
                   ),
                 ),
               ],
-            ),
-          ),
-
-          // ------------------------------------------------
-          // LAYER 3: TOMBOL BACK (SAFE AREA)
-          // ------------------------------------------------
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ),
-
-                  // MENU ADMIN (Hanya muncul jika isAdmin = true)
-                  if (isAdmin)
-                    Container(
-                      decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle),
-                      child: PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert, color: Colors.white),
-                        onSelected: (value) async {
-                          if (value == 'edit') {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => CommunityFormPage(existingData: communityData),
-                              ),
-                            );
-                            if (mounted) {
-                              final request = context.read<CookieRequest>();
-                              fetchDetail(request);
-                            }
-                          } else if (value == 'delete') {
-                            showDeleteConfirmation();
-                          }
-                        },
-                        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                          const PopupMenuItem<String>(
-                            value: 'edit',
-                            child: ListTile(leading: Icon(Icons.edit), title: Text('Edit Info')),
-                          ),
-                          const PopupMenuItem<String>(
-                            value: 'delete',
-                            child: ListTile(leading: Icon(Icons.delete, color: Colors.red), title: Text('Hapus Komunitas', style: TextStyle(color: Colors.red))),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    const SizedBox(width: 48),
-                ],
-              ),
             ),
           ),
         ],
@@ -409,15 +428,9 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     );
   }
 
-  // --- LOGIKA KONTEN TAB ---
-  Widget _buildTabContent(String desc, String sportType, String location, String contact, String rawSchedule, List<dynamic> members, bool isAdmin) {
+  Widget _buildTabContent(String desc, String sportType, String location, String contact, String rawSchedule, List<dynamic> members, bool isAdmin, String established) {
     switch (_selectedTabIndex) {
-      case 0: // About
-        String adminName = "-";
-        if (members.isNotEmpty) {
-           final adminObj = members.firstWhere((m) => m['is_admin'] == true, orElse: () => null);
-           if (adminObj != null) adminName = adminObj['username'];
-        }
+      case 0: 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -425,38 +438,51 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             const SizedBox(height: 12),
             Text(desc, style: GoogleFonts.inter(color: Colors.grey.shade700, height: 1.5, fontSize: 15)),
             const SizedBox(height: 30),
+            
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade200), borderRadius: BorderRadius.circular(16), color: Colors.grey.shade50),
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                borderRadius: BorderRadius.circular(16), 
+                border: Border.all(color: const Color(0xFFC8DDF6)), 
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))], 
+              ),
               child: Column(
                 children: [
                   _buildInfoRow("Sport Type", sportType, "Location", location),
                   const SizedBox(height: 20),
-                  _buildInfoRow("Contact", contact, "Admin", adminName),
+                  _buildInfoRow("Contact", contact, "Established", established),
                 ],
               ),
             ),
           ],
         );
       
-      case 1: // Schedule
+      case 1: // Schedule 
         if (rawSchedule.isEmpty) {
-          return Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text("Belum ada jadwal latihan.", style: GoogleFonts.inter(color: Colors.grey))));
+          return Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text("No training schedule available.", style: GoogleFonts.inter(color: Colors.grey))));
         }
         List<String> scheduleItems = rawSchedule.split('\n');
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Upcoming Sessions", style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text("Routine Training Schedule", style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             ...scheduleItems.map((item) {
                if (item.trim().isEmpty) return const SizedBox.shrink();
-               String timePart = "Jadwal";
+               String timePart = "Schedule";
                String titlePart = item;
-               if (item.contains("-")) {
-                 var parts = item.split("-");
-                 timePart = parts[0].trim();
-                 titlePart = parts.sublist(1).join("-").trim();
+               
+               if (item.contains(" - ")) {
+                 final idx = item.indexOf(" - ");
+                 timePart = item.substring(0, idx).trim(); 
+                 titlePart = item.substring(idx + 3).trim(); 
+               } else if (item.contains("-")) {
+                 final parts = item.split("-");
+                 if (parts.length > 1) {
+                    timePart = parts[0].trim();
+                    titlePart = parts.sublist(1).join("-").trim();
+                 }
                }
                return _buildScheduleItem(timePart, titlePart, location);
             }).toList(),
@@ -465,7 +491,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
 
       case 2: // Members
         if (members.isEmpty) {
-           return Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text("Belum ada anggota.", style: GoogleFonts.inter(color: Colors.grey))));
+           return Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text("No members yet.", style: GoogleFonts.inter(color: Colors.grey))));
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -480,6 +506,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                 isAdmin
               );
             }).toList(),
+            const SizedBox(height: 40),
           ],
         );
         
@@ -500,20 +527,57 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     );
   }
 
-  Widget _buildScheduleItem(String dateTime, String title, String loc) {
+  Widget _buildScheduleItem(String timePart, String title, String loc) {
+    List<String> parts = timePart.split(' ');
+    String topText = parts.isNotEmpty ? parts[0] : ""; 
+    String bottomText = parts.length > 1 ? parts.sublist(1).join(' ') : ""; 
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade200), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))]),
+      decoration: BoxDecoration(
+        color: Colors.white, 
+        borderRadius: BorderRadius.circular(16), 
+        border: Border.all(color: const Color(0xFFC8DDF6)), 
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(color: primaryNavColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-            child: Column(children: [Text(dateTime.split(' ')[0], style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: primaryNavColor)), if (dateTime.contains(' ')) Text(dateTime.split(' ').sublist(1).join(' '), style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: primaryNavColor))]),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            constraints: const BoxConstraints(minWidth: 80), 
+            decoration: BoxDecoration(
+              color: const Color(0xFFE0F2F1), 
+              borderRadius: BorderRadius.circular(12), 
+              border: Border.all(color: const Color(0xFFB2DFDB)) 
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (topText.isNotEmpty)
+                  Text(topText, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800, color: const Color(0xFF00695C))),
+                if (bottomText.isNotEmpty)
+                  Text(bottomText, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF00695C))),
+              ],
+            ),
           ),
-          const SizedBox(width: 20),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16)), const SizedBox(height: 6), Row(children: [Icon(Icons.location_on, size: 14, color: Colors.grey.shade600), const SizedBox(width: 4), Expanded(child: Text(loc, style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600), overflow: TextOverflow.ellipsis))])])),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16, color: const Color(0xFF1B2B5A))),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(Icons.location_on, size: 14, color: Colors.grey.shade500),
+                    const SizedBox(width: 4),
+                    Expanded(child: Text(loc, style: GoogleFonts.inter(fontSize: 13, color: Colors.grey.shade600), overflow: TextOverflow.ellipsis)),
+                  ],
+                )
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -536,7 +600,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
           if (isMemberAdmin)
             Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.orange.shade200)), child: Text("ADMIN", style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.orange.shade800)))
           else if (isCurrentUserAdmin)
-            IconButton(icon: const Icon(Icons.arrow_upward, color: primaryNavColor, size: 20), tooltip: "Jadikan Admin", onPressed: () => promoteMember(name)),
+            IconButton(icon: const Icon(Icons.arrow_upward, color: primaryNavColor, size: 20), onPressed: () => promoteMember(name)),
         ],
       ),
     );

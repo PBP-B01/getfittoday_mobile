@@ -14,7 +14,8 @@ class Community {
     FitnessSpot? fitnessSpot;
     int membersCount;
     String? image;
-    bool isMember; // <--- FIELD BARU
+    bool isMember; 
+    DateTime createdAt;
 
     Community({
         required this.id,
@@ -26,7 +27,8 @@ class Community {
         this.fitnessSpot,
         required this.membersCount,
         this.image,
-        required this.isMember, // <--- Wajib diisi
+        required this.isMember,
+        required this.createdAt, 
     });
 
     factory Community.fromJson(Map<String, dynamic> json) => Community(
@@ -39,7 +41,8 @@ class Community {
         fitnessSpot: json["fitness_spot"] == null ? null : FitnessSpot.fromJson(json["fitness_spot"]),
         membersCount: json["members_count"],
         image: json["image"],
-        isMember: json["is_member"] ?? false, // <--- Baca dari Django (Kalau null, anggap false)
+        isMember: json["is_member"] ?? false, 
+        createdAt: json["created_at"] != null ? DateTime.parse(json["created_at"]) : DateTime.now(),
     );
 
     Map<String, dynamic> toJson() => {
@@ -51,7 +54,8 @@ class Community {
         "fitness_spot": fitnessSpot?.toJson(),
         "members_count": membersCount,
         "image": image,
-        "is_member": isMember, // <--- Masukkan ke JSON
+        "is_member": isMember, 
+        "created_at": createdAt.toIso8601String(),
     };
 }
 
