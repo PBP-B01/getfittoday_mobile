@@ -5,7 +5,8 @@ import 'package:getfittoday_mobile/constants.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // Pastikan import community_form.dart ada di sini
-import 'community_form.dart'; 
+import 'community_event_page.dart';
+import 'community_form.dart';
 
 class CommunityDetailPage extends StatefulWidget {
   final int communityId;
@@ -285,8 +286,15 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Fitur Event akan segera hadir!")),
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CommunityEventsPage(
+                                  communityId: widget.communityId,
+                                  communityName: name, // <--- TAMBAHKAN INI (Variable 'name' sudah ada di build method kamu)
+                                  isAdmin: isAdmin,
+                                ),
+                              ),
                             );
                           },
                           icon: const Icon(Icons.calendar_month, size: 18),
