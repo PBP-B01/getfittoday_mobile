@@ -1,5 +1,4 @@
 ﻿import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/models/fitness_spot.dart';
