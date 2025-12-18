@@ -4,6 +4,7 @@ import 'package:getfittoday_mobile/screens/booking_reservation.dart';
 import 'package:getfittoday_mobile/screens/home.dart';
 import 'package:getfittoday_mobile/screens/login.dart';
 import 'package:getfittoday_mobile/screens/register.dart';
+import 'package:getfittoday_mobile/screens/products_entry_list.dart';
 import 'package:getfittoday_mobile/screens/my_bookings.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
@@ -85,6 +86,7 @@ class MyApp extends StatelessWidget {
           '/register': (context) => const RegisterPage(),
           '/home': (context) => const MyHomePage(),
           '/booking': (context) => const BookingReservationPage(),
+          '/store' : (context) => const ProductEntryListPage(),
           '/my-bookings': (context) => const MyBookingsPage(),
         },
       ),
