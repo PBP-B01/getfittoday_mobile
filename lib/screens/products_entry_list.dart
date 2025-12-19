@@ -31,6 +31,10 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
   final TextEditingController _searchController = TextEditingController();
   String _appliedSearchQuery = "";
   String _appliedSortOption = "terbaru";
+  int _currentPage = 1;
+  int _totalPages = 1;
+  bool _hasNext = false;
+  bool _hasPrevious = false;
   int _cartCount = 0; 
 
   final Map<String, String> _sortOptions = {
@@ -96,28 +100,56 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
     }
   }
 
-  Future<List<Product>> fetchProduct(CookieRequest request) async {
+  Future<ProductPage> fetchProduct(CookieRequest request) async {
     final url = Uri.parse('$djangoBaseUrl/store/api/products/').replace(queryParameters: {
       'q': _appliedSearchQuery,
       'sort': _appliedSortOption,
+      'page': _currentPage.toString(),
     });
 
     final response = await request.get(url.toString());
 
     final List<dynamic> rawProducts;
+    int currentPage = _currentPage;
+    int totalPages = _totalPages;
+    bool hasNext = _hasNext;
+    bool hasPrevious = _hasPrevious;
+
     if (response is List) {
       rawProducts = response;
+      currentPage = 1;
+      totalPages = 1;
+      hasNext = false;
+      hasPrevious = false;
     } else if (response is Map<String, dynamic> && response['products'] is List) {
       rawProducts = response['products'] as List<dynamic>;
+      currentPage = int.tryParse(response['current_page']?.toString() ?? '') ?? 1;
+      totalPages = int.tryParse(response['total_pages']?.toString() ?? '') ?? 1;
+      hasNext = response['has_next'] == true;
+      hasPrevious = response['has_previous'] == true;
     } else {
-      return [];
+      return ProductPage.empty();
     }
 
-    List<Product> listProduct = [];
-    for (var d in rawProducts) {
-      if (d != null) listProduct.add(Product.fromJson(d));
+    final listProduct = rawProducts.where((d) => d != null).map((d) => Product.fromJson(d)).toList();
+
+    // Simpan metadata pagination ke state.
+    if (mounted) {
+      setState(() {
+        _currentPage = currentPage;
+        _totalPages = totalPages;
+        _hasNext = hasNext;
+        _hasPrevious = hasPrevious;
+      });
     }
-    return listProduct;
+
+    return ProductPage(
+      products: listProduct,
+      currentPage: currentPage,
+      totalPages: totalPages,
+      hasNext: hasNext,
+      hasPrevious: hasPrevious,
+    );
   }
 
   @override
@@ -287,6 +319,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
                       setState(() {
                         _uiSearchQuery = val;
                         _appliedSearchQuery = val;
+                        _currentPage = 1;
                       });
                     },
                   ),
@@ -338,6 +371,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
                     setState(() {
                       _appliedSearchQuery = _searchController.text;
                       _appliedSortOption = _uiSortOption;
+                      _currentPage = 1;
                     });
                   },
                   child: const Text("Filter", style: TextStyle(fontWeight: FontWeight.bold)),
@@ -386,25 +420,37 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
-              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              } else if (!snapshot.hasData || snapshot.data!.products.isEmpty) {
                 return const Center(child: Text("Produk tidak ditemukan."));
               }
 
-              return GridView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.50, 
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                ),
-                itemCount: snapshot.data!.length,
-                itemBuilder: (_, index) {
-                  return ProductEntryCard(
-                    product: snapshot.data![index],
-                    onRefresh: refreshList,
-                  );
-                },
+              final page = snapshot.data!;
+              final products = page.products;
+
+              return Column(
+                children: [
+                  Expanded(
+                    child: GridView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.50, 
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                      ),
+                      itemCount: products.length,
+                      itemBuilder: (_, index) {
+                        return ProductEntryCard(
+                          product: products[index],
+                          onRefresh: refreshList,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildPaginationBar(page),
+                  const SizedBox(height: 12),
+                ],
               );
             },
           ),
@@ -412,4 +458,78 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
       ],
     );
   }
+
+  Widget _buildPaginationBar(ProductPage page) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left),
+          onPressed: page.hasPrevious
+              ? () {
+                  setState(() {
+                    _currentPage = (_currentPage - 1).clamp(1, page.totalPages);
+                  });
+                }
+              : null,
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade300),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.12),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Text(
+            "Halaman ${page.currentPage} dari ${page.totalPages}",
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1B2B5A),
+            ),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.chevron_right),
+          onPressed: page.hasNext
+              ? () {
+                  setState(() {
+                    _currentPage = (_currentPage + 1).clamp(1, page.totalPages);
+                  });
+                }
+              : null,
+        ),
+      ],
+    );
+  }
+}
+
+class ProductPage {
+  final List<Product> products;
+  final int currentPage;
+  final int totalPages;
+  final bool hasNext;
+  final bool hasPrevious;
+
+  ProductPage({
+    required this.products,
+    required this.currentPage,
+    required this.totalPages,
+    required this.hasNext,
+    required this.hasPrevious,
+  });
+
+  factory ProductPage.empty() => ProductPage(
+        products: const [],
+        currentPage: 1,
+        totalPages: 1,
+        hasNext: false,
+        hasPrevious: false,
+      );
 }

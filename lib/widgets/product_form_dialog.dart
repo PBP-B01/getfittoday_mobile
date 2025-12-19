@@ -22,6 +22,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   late String _price;
   late String _imageUrl;
   late String _rating;
+  late double _ratingValue;
   late String _unitsSold;
   String? _selectedStoreId; // Untuk Dropdown
 
@@ -34,6 +35,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     _price = widget.product?.fields.price.toString() ?? "";
     _imageUrl = widget.product?.fields.imageUrl ?? "";
     _rating = widget.product?.fields.rating ?? "";
+    _ratingValue = double.tryParse(_rating) ?? 0.0;
     _unitsSold = widget.product?.fields.unitsSold ?? "";
     
     // Ambil ID Toko yang sudah ada (jika edit)
@@ -114,11 +116,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
 
                 // 3. Rating
                 _buildLabel("Rating"),
-                TextFormField(
-                  initialValue: _rating,
-                  decoration: _inputDecoration("Opsional (contoh: 4.5)"),
-                  onChanged: (val) => _rating = val,
-                ),
+                _buildRatingStepper(),
                 const SizedBox(height: 12),
 
                 // 4. Jumlah Terjual
@@ -258,6 +256,47 @@ onPressed: () async {
         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF5C6B89)),
       ),
     );
+  }
+
+  Widget _buildRatingStepper() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.remove),
+            onPressed: () => _adjustRating(-0.1),
+          ),
+          Text(
+            _ratingValue.toStringAsFixed(1),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1B2B5A),
+            ),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.add),
+            onPressed: () => _adjustRating(0.1),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _adjustRating(double delta) {
+    setState(() {
+      _ratingValue = (_ratingValue + delta).clamp(0.0, 5.0);
+      _rating = _ratingValue.toStringAsFixed(1);
+    });
   }
 
   // Helper untuk Style Input
