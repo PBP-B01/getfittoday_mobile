@@ -5,6 +5,7 @@ import 'package:getfittoday_mobile/screens/blogsnevents.dart';
 import 'package:getfittoday_mobile/screens/home.dart';
 import 'package:getfittoday_mobile/screens/login.dart';
 import 'package:getfittoday_mobile/screens/register.dart';
+import 'package:getfittoday_mobile/screens/products_entry_list.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
@@ -85,7 +86,6 @@ class MyApp extends StatelessWidget {
           '/register': (context) => const RegisterPage(),
           '/home': (context) => const MyHomePage(),
           '/booking': (context) => const BookingReservationPage(),
-          '/blogs': (context) => const BlogsEventsPage(),
         },
       ),
     );
