@@ -4,8 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/community.dart';
-import 'community_detail.dart';
+import '../../models/community.dart';
+import '../../screens/community_detail.dart';
 import 'community_form.dart';
 
 class CommunityListPage extends StatefulWidget {

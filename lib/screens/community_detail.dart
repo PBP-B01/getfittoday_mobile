@@ -5,8 +5,8 @@ import 'package:getfittoday_mobile/constants.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // Pastikan import community_form.dart ada di sini
-import 'community_event_page.dart';
-import 'community_form.dart';
+import '../screens/community_event_page.dart';
+import '../screens/community_form.dart';
 
 class CommunityDetailPage extends StatefulWidget {
   final int communityId;

@@ -7,7 +7,7 @@ import 'package:getfittoday_mobile/screens/register.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:getfittoday_mobile/community/screens/community_list.dart';
+import 'package:getfittoday_mobile/screens/community_list.dart';
 import 'package:intl/date_symbol_data_local.dart'; // Import ini sudah benar
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
