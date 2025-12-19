@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
@@ -126,15 +127,15 @@ class SiteNavBar extends StatelessWidget {
   ) async {
     switch (action) {
       case _ProfileMenuAction.bookings:
-        _go(context, '/booking');
+        _go(context, '/my-bookings');
         break;
       case _ProfileMenuAction.logout:
         try {
           await request.logout('$djangoBaseUrl/auth/logout/');
         } catch (_) {
-          // ignore logout exception, still navigate
         }
         if (!context.mounted) return;
+        context.read<AuthState>().clear();
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
@@ -368,7 +369,7 @@ class SiteNavBar extends StatelessWidget {
                     ],
                   ),
                 const SizedBox(width: 16),
-            PopupMenuButton<_ProfileMenuAction>(
+                PopupMenuButton<_ProfileMenuAction>(
               tooltip: 'Profile',
               offset: const Offset(0, 10),
               shape: RoundedRectangleBorder(
@@ -405,7 +406,7 @@ class SiteNavBar extends StatelessWidget {
                 const PopupMenuItem<_ProfileMenuAction>(
                   value: _ProfileMenuAction.bookings,
                   child: Text(
-                    'My bookings',
+                    'My Bookings',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: primaryNavColor,

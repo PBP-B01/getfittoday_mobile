@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/models/product.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
@@ -48,7 +49,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   Future<void> _fetchFitnessSpots() async {
     final request = context.read<CookieRequest>();
     try {
-      final response = await request.get('http://127.0.0.1:8000/store/api/spots/');
+      final response = await request.get('$djangoBaseUrl/store/api/spots/');
       if (mounted) {
         setState(() {
           _fitnessSpots = response;
@@ -144,10 +145,15 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                 DropdownButtonFormField<String>(
                   decoration: _inputDecoration("-- Pilih Toko --"),
                   value: _selectedStoreId,
+                  isExpanded: true,
                   items: _fitnessSpots.map<DropdownMenuItem<String>>((spot) {
                     return DropdownMenuItem<String>(
                       value: spot['id'].toString(), // Value harus String agar cocok
-                      child: Text(spot['name']),
+                      child: Text(
+                        spot['name'],
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
                     );
                   }).toList(),
                   onChanged: (val) {
@@ -186,24 +192,24 @@ onPressed: () async {
                 "name": _name,
                 "price": int.tryParse(_price) ?? 0, // Kirim sebagai INT
                 "image_url": _imageUrl,
-                "rating": _rating,
+                "rating": _rating.isNotEmpty ? _rating : null,
                 "units_sold": _unitsSold,
                 "store": _selectedStoreId, // Django views.py kita sudah pintar handle string/int ID ini
               };
 
               dynamic response;
               
-              try {
-                if (isEdit) {
-                  // === EDIT MODE (Gunakan postJson) ===
-                  response = await request.postJson(
-                    "http://127.0.0.1:8000/store/product/${widget.product!.pk}/edit/",
+                  try {
+                    if (isEdit) {
+                      // === EDIT MODE (Gunakan postJson) ===
+                      response = await request.postJson(
+                    "$djangoBaseUrl/store/api/product/${widget.product!.pk}/edit/",
                     jsonEncode(dataPayload), // Encode jadi JSON String
                   );
-                } else {
-                  // === CREATE MODE ===
-                  response = await request.postJson(
-                    "http://127.0.0.1:8000/store/create-flutter/",
+                    } else {
+                      // === CREATE MODE ===
+                      response = await request.postJson(
+                    "$djangoBaseUrl/store/create-flutter/",
                     jsonEncode(dataPayload),
                   );
                 }

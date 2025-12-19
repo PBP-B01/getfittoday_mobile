@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/models/product.dart';
+import 'package:getfittoday_mobile/constants.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:getfittoday_mobile/widgets/product_form_dialog.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
@@ -19,26 +21,8 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
   @override
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
-    
-    // === HARDCODE STATUS ===
-    // Ganti logika ini dengan data asli jika sudah ada auth
-    bool loggedIn = true;
-    bool isAdmin = true;
-
-    final data = request.jsonData;
-    if (data is Map) {
-      if ((data['username'] is String && (data['username'] as String).isNotEmpty) ||
-          (request.cookies['username']?.value != null && request.cookies['username']!.value.isNotEmpty)) {
-        loggedIn = true;
-      }
-      if (data['is_superuser'] == true || data['is_admin'] == true) {
-        isAdmin = true;
-      }
-    } else {
-      final cookie = request.cookies['username'];
-      if (cookie != null && cookie.value.isNotEmpty) loggedIn = true;
-    }
-    // =======================
+    final loggedIn = request.loggedIn;
+    final isAdmin = context.watch<AuthState>().isAdmin;
 
     return AlertDialog(
       backgroundColor: Colors.white,
@@ -112,13 +96,7 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
                   const Icon(Icons.store, size: 16, color: Colors.grey),
                   const SizedBox(width: 6),
                   const Text("Dijual oleh: ", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  Expanded(
-                    child: Text(
-                      widget.product.fields.storeName, 
-                      style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                  Text(widget.product.fields.storeName, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
                 ],
               ),
 
@@ -184,8 +162,9 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEEF2FF), foregroundColor: const Color(0xFF4F46E5)),
         onPressed: () {
-            // Navigator.pushNamed(context, '/login'); // Uncomment jika route login sudah siap
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Silakan login terlebih dahulu")));
+          final navigator = Navigator.of(context);
+          navigator.pop();
+          navigator.pushNamed('/login');
         },
         child: const Text("Login untuk Beli"),
       ),
@@ -256,7 +235,7 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                       onPressed: () async {
                         Navigator.pop(ctx); // Tutup Konfirmasi
-                        final response = await request.post("http://127.0.0.1:8000/store/product/${widget.product.pk}/delete/", {});
+                        final response = await request.post("$djangoBaseUrl/store/product/${widget.product.pk}/delete/", {});
                         if (response['success'] == true) {
                           if(mounted) {
                              Navigator.pop(context); // Tutup Detail Pop-up
