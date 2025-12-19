@@ -213,7 +213,12 @@ class ProductEntryCard extends StatelessWidget {
             );
             if (context.mounted && response['success'] == true) {
               onRefresh();
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Masuk keranjang!")));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Masuk keranjang!"),
+                  backgroundColor: Colors.green,
+                ),
+              );
             }
           },
         ),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/models/fitness_spot.dart';
 import 'package:getfittoday_mobile/services/fitness_spot_service.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:getfittoday_mobile/utils/grid_helper.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
 import 'package:getfittoday_mobile/widgets/location_sidebar.dart';
@@ -46,14 +47,39 @@ class _MyHomePageState extends State<MyHomePage> {
     zoom: 14.0,
   );
 
+  Future<void> _ensureSession() async {
+    final request = context.read<CookieRequest>();
+    if (request.loggedIn) return;
+    try {
+      final resp = await request.get('$djangoBaseUrl/auth/whoami/');
+      final loggedIn = resp is Map && resp['logged_in'] == true;
+      if (loggedIn) {
+        request.loggedIn = true;
+        request.jsonData = Map<String, dynamic>.from(resp);
+        if (mounted) {
+          context.read<AuthState>().setFromLoginResponse(
+                Map<String, dynamic>.from(resp),
+                fallbackUsername: resp['username']?.toString(),
+              );
+        }
+      }
+    } catch (_) {
+      // ignore network errors; user will be treated as logged out
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _fetchBoundaries();
-    // Initial fetch for the starting position
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updateVisibleSpots();
+      _bootstrap();
     });
+  }
+
+  Future<void> _bootstrap() async {
+    await _ensureSession();
+    await _fetchBoundaries();
+    _updateVisibleSpots();
   }
 
   @override

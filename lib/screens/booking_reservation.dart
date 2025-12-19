@@ -6,6 +6,7 @@ import 'package:getfittoday_mobile/models/reservation.dart';
 import 'package:getfittoday_mobile/services/fitness_spot_service.dart';
 import 'package:getfittoday_mobile/services/reservation_service.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
@@ -78,9 +79,35 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     super.didChangeDependencies();
     if (!_futureInitialized) {
       final request = context.read<CookieRequest>();
-      _reloadReservations(request);
-      _locationsFuture = _loadLocations(request);
       _futureInitialized = true;
+      _bootstrapSession(request);
+    }
+  }
+
+  Future<void> _bootstrapSession(CookieRequest request) async {
+    await _ensureSession(request);
+    if (!mounted) return;
+    _reloadReservations(request);
+    _locationsFuture = _loadLocations(request);
+  }
+
+  Future<void> _ensureSession(CookieRequest request) async {
+    if (request.loggedIn) return;
+    try {
+      final resp = await request.get('$djangoBaseUrl/auth/whoami/');
+      final loggedIn = resp is Map && resp['logged_in'] == true;
+      if (loggedIn) {
+        request.loggedIn = true;
+        request.jsonData = Map<String, dynamic>.from(resp);
+        if (mounted) {
+          context.read<AuthState>().setFromLoginResponse(
+                Map<String, dynamic>.from(resp),
+                fallbackUsername: resp['username']?.toString(),
+              );
+        }
+      }
+    } catch (_) {
+      // ignore errors; user treated as logged out
     }
   }
 
