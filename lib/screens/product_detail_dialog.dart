@@ -22,8 +22,8 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
     
     // === HARDCODE STATUS ===
     // Ganti logika ini dengan data asli jika sudah ada auth
-    bool loggedIn = false;
-    bool isAdmin = false;
+    bool loggedIn = true;
+    bool isAdmin = true;
 
     final data = request.jsonData;
     if (data is Map) {

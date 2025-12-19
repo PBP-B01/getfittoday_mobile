@@ -22,8 +22,8 @@ class ProductEntryCard extends StatelessWidget {
     // SIMULASI LOGIN & ROLE
     // =====PERUBAHAN BARU=====
     // Ganti hardcoded true/false dengan deteksi dari CookieRequest:
-    bool loggedIn = false;
-    bool isAdmin = false;
+    bool loggedIn = true;
+    bool isAdmin = true;
 
     final data = request.jsonData;
     if (data is Map) {

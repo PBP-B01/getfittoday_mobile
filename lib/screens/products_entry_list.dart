@@ -130,7 +130,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
     final request = context.watch<CookieRequest>();
     
     // === MODE ADMIN: UBAH JADI TRUE UNTUK LIHAT HASIL ===
-    final bool isAdmin = false;
+    final bool isAdmin = true;
     // ===================================================
 
     // =====PERUBAHAN BARU=====
