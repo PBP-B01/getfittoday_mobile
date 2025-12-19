@@ -8,6 +8,7 @@ class Reservation {
   final DateTime? startDateTime;
   final DateTime? endDateTime;
   final bool canCancel;
+  final String? ownerName;
 
   Reservation({
     required this.id,
@@ -19,6 +20,7 @@ class Reservation {
     required this.endDateTime,
     this.notes,
     this.canCancel = false,
+    this.ownerName,
   });
 
   factory Reservation.fromJson(Map<String, dynamic> json) {
@@ -42,6 +44,7 @@ class Reservation {
       );
 
       final location = json['place_name']?.toString() ?? 'Lokasi belum diisi';
+      final owner = json['owner']?.toString();
       final title = (json['title']?.toString().trim().isNotEmpty ?? false)
           ? json['title']!.toString()
           : location.isNotEmpty
@@ -62,6 +65,7 @@ class Reservation {
         endDateTime: endDateTime,
         notes: json['notes']?.toString(),
         canCancel: canCancel,
+        ownerName: owner,
       );
     }
 

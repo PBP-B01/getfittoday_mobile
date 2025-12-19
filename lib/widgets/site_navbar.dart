@@ -300,6 +300,7 @@ class SiteNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
+    final isAdmin = context.watch<AuthState>().isAdmin;
     final username = _usernameFromRequest(request);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
@@ -377,22 +378,22 @@ class SiteNavBar extends StatelessWidget {
               ),
               onSelected: (action) =>
                   _handleProfileAction(context, request, action),
-              itemBuilder: (context) => [
-                PopupMenuItem<_ProfileMenuAction>(
-                  enabled: false,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Signed in as',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: inkWeakColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        username,
+                  itemBuilder: (context) => [
+                    PopupMenuItem<_ProfileMenuAction>(
+                      enabled: false,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                          const Text(
+                            'Signed in as',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: inkWeakColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            username,
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 14,
@@ -402,17 +403,17 @@ class SiteNavBar extends StatelessWidget {
                     ],
                   ),
                 ),
-                const PopupMenuDivider(),
-                const PopupMenuItem<_ProfileMenuAction>(
-                  value: _ProfileMenuAction.bookings,
-                  child: Text(
-                    'My Bookings',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: primaryNavColor,
+                    const PopupMenuDivider(),
+                    PopupMenuItem<_ProfileMenuAction>(
+                      value: _ProfileMenuAction.bookings,
+                      child: Text(
+                        isAdmin ? 'All Users bookings' : 'My Bookings',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: primaryNavColor,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
                 const PopupMenuItem<_ProfileMenuAction>(
                   value: _ProfileMenuAction.logout,
                   child: Text(

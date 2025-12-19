@@ -45,8 +45,31 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureSession();
       _updateCartCount();
     });
+  }
+
+  Future<void> _ensureSession() async {
+    final request = context.read<CookieRequest>();
+    if (request.loggedIn) return;
+    try {
+      final resp = await request.get('$djangoBaseUrl/auth/whoami/');
+      final loggedIn = resp is Map && resp['logged_in'] == true;
+      if (loggedIn) {
+        request.loggedIn = true;
+        request.jsonData = Map<String, dynamic>.from(resp);
+        if (mounted) {
+          context.read<AuthState>().setFromLoginResponse(
+                Map<String, dynamic>.from(resp),
+                fallbackUsername: resp['username']?.toString(),
+              );
+        }
+      }
+    } catch (_) {
+      // ignore: avoid_print
+      print('whoami check failed');
+    }
   }
 
   void refreshList() {
@@ -234,11 +257,18 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
               Expanded(
                 flex: 3,
                 child: Container(
-                  height: 45,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.08),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: TextField(
                     controller: _searchController,
@@ -246,7 +276,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
                       hintText: "Cari produk...",
                       hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12), 
+                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14), 
                     ),
                     onChanged: (val) => _uiSearchQuery = val,
                     onSubmitted: (val) {

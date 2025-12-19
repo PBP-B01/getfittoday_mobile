@@ -4,10 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/models/reservation.dart';
 import 'package:getfittoday_mobile/services/reservation_service.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
+
+enum BookingSort { newest, oldest }
+enum BookingStatusFilter { all, pending, cancelled }
 
 class MyBookingsPage extends StatefulWidget {
   const MyBookingsPage({super.key});
@@ -20,19 +24,213 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
   final _reservationService = ReservationService();
   late Future<List<Reservation>> _future;
   bool _initialized = false;
+  BookingSort _sort = BookingSort.newest;
+  BookingStatusFilter _filter = BookingStatusFilter.all;
+
+  List<Reservation> _applyFilterAndSort(List<Reservation> items) {
+    Iterable<Reservation> filtered = items;
+    final now = DateTime.now();
+
+    switch (_filter) {
+      case BookingStatusFilter.pending:
+        filtered = filtered.where(
+          (r) => r.status.toLowerCase().contains('pending'),
+        );
+        break;
+      case BookingStatusFilter.cancelled:
+        filtered = filtered.where(
+          (r) => r.status.toLowerCase().contains('cancel'),
+        );
+        break;
+      case BookingStatusFilter.all:
+        break;
+    }
+
+    final sorted = filtered.toList()
+      ..sort((a, b) {
+        final aDate = a.startDateTime;
+        final bDate = b.startDateTime;
+        int cmp;
+        if (aDate != null && bDate != null) {
+          cmp = bDate.compareTo(aDate); // newest first
+        } else if (aDate != null) {
+          cmp = -1;
+        } else if (bDate != null) {
+          cmp = 1;
+        } else {
+          cmp = 0;
+        }
+        return _sort == BookingSort.newest ? cmp : -cmp;
+      });
+
+    return sorted;
+  }
+
+  void _openFilterSheet() {
+    final parentSetState = setState;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        BookingSort tempSort = _sort;
+        BookingStatusFilter tempFilter = _filter;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Filter & Sort',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      )
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Sort by',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  RadioListTile<BookingSort>(
+                    value: BookingSort.newest,
+                    groupValue: tempSort,
+                    onChanged: (v) => setState(() => tempSort = v!),
+                    title: const Text('Newest first'),
+                    dense: true,
+                  ),
+                  RadioListTile<BookingSort>(
+                    value: BookingSort.oldest,
+                    groupValue: tempSort,
+                    onChanged: (v) => setState(() => tempSort = v!),
+                    title: const Text('Oldest first'),
+                    dense: true,
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Status',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  RadioListTile<BookingStatusFilter>(
+                    value: BookingStatusFilter.all,
+                    groupValue: tempFilter,
+                    onChanged: (v) => setState(() => tempFilter = v!),
+                    title: const Text('All'),
+                    dense: true,
+                  ),
+                  RadioListTile<BookingStatusFilter>(
+                    value: BookingStatusFilter.pending,
+                    groupValue: tempFilter,
+                    onChanged: (v) => setState(() => tempFilter = v!),
+                    title: const Text('Pending'),
+                    dense: true,
+                  ),
+                  RadioListTile<BookingStatusFilter>(
+                    value: BookingStatusFilter.cancelled,
+                    groupValue: tempFilter,
+                    onChanged: (v) => setState(() => tempFilter = v!),
+                    title: const Text('Cancelled'),
+                    dense: true,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        parentSetState(() {
+                          _sort = tempSort;
+                          _filter = tempFilter;
+                        });
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryNavColor,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text(
+                        'Apply',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _labelFilter(BookingSort sort, BookingStatusFilter filter) {
+    final sortLabel = sort == BookingSort.newest ? 'Newest' : 'Oldest';
+    String filterLabel = 'All';
+    switch (filter) {
+      case BookingStatusFilter.all:
+        filterLabel = 'All';
+        break;
+      case BookingStatusFilter.pending:
+        filterLabel = 'Pending';
+        break;
+      case BookingStatusFilter.cancelled:
+        filterLabel = 'Cancelled';
+        break;
+    }
+    return '$sortLabel · $filterLabel';
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_initialized) {
-      final request = context.read<CookieRequest>();
-      _future = _reservationService.fetchMine(request);
+      _future = _bootstrapAndFetch();
       _initialized = true;
     }
   }
 
+  Future<void> _ensureSession(CookieRequest request) async {
+    if (request.loggedIn) return;
+    try {
+      final resp = await request.get('$djangoBaseUrl/auth/whoami/');
+      final loggedIn = resp is Map && resp['logged_in'] == true;
+      if (loggedIn) {
+        request.loggedIn = true;
+        request.jsonData = Map<String, dynamic>.from(resp);
+        if (mounted) {
+          context.read<AuthState>().setFromLoginResponse(
+                Map<String, dynamic>.from(resp),
+                fallbackUsername: resp['username']?.toString(),
+              );
+        }
+      }
+    } catch (_) {
+      // ignore errors; fallback to unauthenticated
+    }
+  }
+
+  Future<List<Reservation>> _bootstrapAndFetch() async {
+    final request = context.read<CookieRequest>();
+    await _ensureSession(request);
+    return _reservationService.fetchMine(request);
+  }
+
   Future<void> _refresh() async {
     final request = context.read<CookieRequest>();
+    await _ensureSession(request);
     setState(() {
       _future = _reservationService.fetchMine(request);
     });
@@ -41,6 +239,8 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isAdmin = context.watch<AuthState>().isAdmin;
+
     return Scaffold(
       body: Container(
         width: double.infinity,
@@ -100,7 +300,9 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                       }
 
                       final reservations = snapshot.data ?? [];
-                      if (reservations.isEmpty) {
+                      final displayed = _applyFilterAndSort(reservations);
+
+                      if (displayed.isEmpty) {
                         return RefreshIndicator(
                           onRefresh: _refresh,
                           child: ListView(
@@ -111,7 +313,13 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                             children: [
                               const _BackButtonRow(),
                               const SizedBox(height: 8),
-                              _Header(),
+                              _Header(
+                                isAdmin: isAdmin,
+                                sort: _sort,
+                                filter: _filter,
+                                filterLabel: _labelFilter(_sort, _filter),
+                                onOpenFilter: _openFilterSheet,
+                              ),
                               const SizedBox(height: 12),
                               _EmptyState(onRefresh: _refresh),
                             ],
@@ -128,17 +336,25 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                           ),
                           itemBuilder: (context, index) {
                             if (index == 0) return const _BackButtonRow();
-                            if (index == 1) return _Header();
-                            final reservation = reservations[index - 2];
+                            if (index == 1)
+                              return _Header(
+                                isAdmin: isAdmin,
+                                sort: _sort,
+                                filter: _filter,
+                                filterLabel: _labelFilter(_sort, _filter),
+                                onOpenFilter: _openFilterSheet,
+                              );
+                            final reservation = displayed[index - 2];
                             return _BookingCard(
                               reservation: reservation,
                               onChanged: _refresh,
-                              allReservations: reservations,
+                              allReservations: displayed,
+                              isAdmin: isAdmin,
                             );
                           },
                           separatorBuilder: (context, index) =>
                               const SizedBox(height: 12),
-                          itemCount: reservations.length + 2,
+                          itemCount: displayed.length + 2,
                         ),
                       );
                     },
@@ -154,6 +370,20 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
 }
 
 class _Header extends StatelessWidget {
+  final bool isAdmin;
+  final BookingSort sort;
+  final BookingStatusFilter filter;
+  final String filterLabel;
+  final VoidCallback onOpenFilter;
+
+  const _Header({
+    required this.isAdmin,
+    required this.sort,
+    required this.filter,
+    required this.filterLabel,
+    required this.onOpenFilter,
+  });
+
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -174,7 +404,7 @@ class _Header extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'My Bookings',
+              isAdmin ? 'All Bookings' : 'My Bookings',
               style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.w900,
@@ -183,13 +413,33 @@ class _Header extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Daftar semua booking kamu, mulai dari jadwal terdekat.',
+              isAdmin
+                  ? 'Mode Admin: lihat semua booking dan hapus booking user.'
+                  : 'Daftar semua booking kamu, mulai dari jadwal terdekat.',
               style: GoogleFonts.inter(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w600,
                 color: inkWeakColor,
               ),
             ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: onOpenFilter,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: primaryNavColor,
+                  side: BorderSide(color: primaryNavColor.withOpacity(0.4)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                icon: const Icon(Icons.filter_alt_outlined, size: 18),
+                label: Text(
+                  filterLabel,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            )
           ],
         ),
       ),
@@ -270,11 +520,13 @@ class _BookingCard extends StatelessWidget {
   final Reservation reservation;
   final Future<void> Function() onChanged;
   final List<Reservation> allReservations;
+  final bool isAdmin;
 
   const _BookingCard({
     required this.reservation,
     required this.onChanged,
     required this.allReservations,
+    required this.isAdmin,
   });
 
   static const List<String> _hourSlots = <String>[
@@ -411,6 +663,25 @@ class _BookingCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (isAdmin && reservation.ownerName != null) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(Icons.person, size: 16, color: inkWeakColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      reservation.ownerName!,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: inkWeakColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             if (reservation.notes != null && reservation.notes!.isNotEmpty) ...[
               const SizedBox(height: 6),
               Row(
@@ -431,12 +702,12 @@ class _BookingCard extends StatelessWidget {
                 ],
               ),
             ],
-            if (canCancel || isClosed) ...[
+            if (isAdmin || canCancel || isClosed) ...[
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (canCancel && duration != null)
+                  if (!isAdmin && canCancel && duration != null)
                     TextButton.icon(
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.blue.shade50,
@@ -466,9 +737,9 @@ class _BookingCard extends StatelessWidget {
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
-                  if (canCancel && (duration != null))
+                  if (!isAdmin && canCancel && (duration != null))
                     const SizedBox(width: 8),
-                  if (canCancel)
+                  if (!isAdmin && canCancel)
                     TextButton.icon(
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.red.shade50,
@@ -565,28 +836,40 @@ class _BookingCard extends StatelessWidget {
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
-                  if (isClosed) ...[
-                    if (canCancel) const SizedBox(width: 8),
+                  if (isAdmin || isClosed) ...[
+                    if (!isAdmin && canCancel) const SizedBox(width: 8),
                     TextButton.icon(
                       style: TextButton.styleFrom(
-                        backgroundColor: Colors.grey.shade100,
-                        foregroundColor: Colors.grey.shade700,
+                        backgroundColor:
+                            isAdmin ? Colors.red.shade50 : Colors.grey.shade100,
+                        foregroundColor:
+                            isAdmin ? Colors.red.shade700 : Colors.grey.shade700,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 8,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
-                          side: BorderSide(color: Colors.grey.shade300),
+                          side: BorderSide(
+                            color: isAdmin
+                                ? Colors.red.shade200
+                                : Colors.grey.shade300,
+                          ),
                         ),
                       ),
                       onPressed: () async {
                         final confirmed = await showDialog<bool>(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: const Text('Delete booking from history?'),
-                                content: const Text(
-                                  'This will remove the booking from your history. This action cannot be undone.',
+                                title: Text(
+                                  isAdmin
+                                      ? 'Remove booking?'
+                                      : 'Delete booking from history?',
+                                ),
+                                content: Text(
+                                  isAdmin
+                                      ? 'Booking ini akan dihapus (admin action). Tidak bisa dibatalkan.'
+                                      : 'This will remove the booking from your history. This action cannot be undone.',
                                 ),
                                 actions: [
                                   TextButton(
@@ -601,7 +884,9 @@ class _BookingCard extends StatelessWidget {
                                     ),
                                     onPressed: () =>
                                         Navigator.of(context).pop(true),
-                                    child: const Text('Yes, delete'),
+                                    child: Text(
+                                      isAdmin ? 'Yes, remove' : 'Yes, delete',
+                                    ),
                                   ),
                                 ],
                               ),
@@ -627,8 +912,10 @@ class _BookingCard extends StatelessWidget {
                               ..hideCurrentSnackBar()
                               ..showSnackBar(
                                 SnackBar(
-                                  content: const Text(
-                                    'Booking removed from history.',
+                                  content: Text(
+                                    isAdmin
+                                        ? 'Booking removed.'
+                                        : 'Booking removed from history.',
                                   ),
                                   backgroundColor: Colors.green.shade600,
                                 ),
@@ -660,9 +947,9 @@ class _BookingCard extends StatelessWidget {
                         }
                       },
                       icon: const Icon(Icons.delete_outline, size: 18),
-                      label: const Text(
-                        'Delete history',
-                        style: TextStyle(fontWeight: FontWeight.w700),
+                      label: Text(
+                        isAdmin ? 'Remove booking' : 'Delete history',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                   ],
