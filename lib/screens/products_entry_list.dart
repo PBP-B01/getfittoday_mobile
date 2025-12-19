@@ -133,16 +133,6 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
 
     final listProduct = rawProducts.where((d) => d != null).map((d) => Product.fromJson(d)).toList();
 
-    // Simpan metadata pagination ke state.
-    if (mounted) {
-      setState(() {
-        _currentPage = currentPage;
-        _totalPages = totalPages;
-        _hasNext = hasNext;
-        _hasPrevious = hasPrevious;
-      });
-    }
-
     return ProductPage(
       products: listProduct,
       currentPage: currentPage,
