@@ -49,11 +49,13 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   final List<String> _timeSlots =
       List.generate(15, (index) => '${(index + 8).toString().padLeft(2, '0')}:00');
   final List<String> _durations = const [
-    '30 Menit',
     '1 Jam',
-    '1.5 Jam',
     '2 Jam',
+    '3 Jam',
+    '4 Jam',
+    '5 Jam',
   ];
+  static const int _closingHour = 22; // 22:00 adalah jam tutup
 
   @override
   void initState() {
@@ -495,25 +497,39 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
 
   int _durationInMinutes() {
     switch (_selectedDuration) {
-      case '30 Menit':
-        return 30;
       case '1 Jam':
         return 60;
-      case '1.5 Jam':
-        return 90;
       case '2 Jam':
-      default:
         return 120;
+      case '3 Jam':
+        return 180;
+      case '4 Jam':
+        return 240;
+      case '5 Jam':
+        return 300;
+      default:
+        return 60;
     }
   }
 
-  Set<String> _disabledSlotsForSelected() {
+  List<String> _slotsRespectingClosing(int durationMinutes) {
+    if (_selectedDate == null) return _timeSlots;
+    final date = _selectedDate!;
+    final closing = DateTime(date.year, date.month, date.day, _closingHour, 0);
+    return _timeSlots.where((slot) {
+      final tod = _timeOf(slot);
+      final slotStart = DateTime(date.year, date.month, date.day, tod.hour, tod.minute);
+      final slotEnd = slotStart.add(Duration(minutes: durationMinutes));
+      return !slotEnd.isAfter(closing);
+    }).toList();
+  }
+
+  Set<String> _disabledSlotsForSelected(List<String> slots, int durationMinutes) {
     if (_selectedDate == null || _myReservations.isEmpty) return <String>{};
 
     final date = _selectedDate!;
     final selectedLoc =
         (_selectedLocation?.name ?? _locationController.text).trim().toLowerCase();
-    final durationMinutes = _durationInMinutes();
 
     bool sameDay(DateTime dt) =>
         dt.year == date.year && dt.month == date.month && dt.day == date.day;
@@ -525,7 +541,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     }
 
     final disabled = <String>{};
-    for (final slot in _timeSlots) {
+    for (final slot in slots) {
       final tod = _timeOf(slot);
       final slotStart = DateTime(date.year, date.month, date.day, tod.hour, tod.minute);
       final slotEnd = slotStart.add(Duration(minutes: durationMinutes));
@@ -918,8 +934,10 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                       builder: (context, constraints) {
                                         final isWide = constraints.maxWidth > 720;
                                         final hasLocation = _hasSelectedLocation;
+                                        final durationMinutes = _durationInMinutes();
+                                        final availableSlots = _slotsRespectingClosing(durationMinutes);
                                         final disabledSlots =
-                                            _disabledSlotsForSelected();
+                                            _disabledSlotsForSelected(availableSlots, durationMinutes);
                                         final calendar = _CalendarCard(
                                           enabled: hasLocation,
                                           onRequireLocation:
@@ -944,9 +962,14 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                               _showLocationRequired,
                                           selectedDuration: _selectedDuration,
                                           onDurationChanged: (val) {
-                                            setState(() => _selectedDuration = val);
+                                            setState(() {
+                                              _selectedDuration = val;
+                                              _selectedTimeLabel = null;
+                                              _selectedTime = null;
+                                              _timeController.clear();
+                                            });
                                           },
-                                          timeSlots: _timeSlots,
+                                          timeSlots: availableSlots,
                                           selectedLabel: _selectedTimeLabel,
                                           selectedDate: _selectedDate,
                                           disabledSlots: disabledSlots,
