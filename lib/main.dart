@@ -10,13 +10,24 @@ import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:getfittoday_mobile/screens/community_list.dart';
+import 'package:intl/date_symbol_data_local.dart'; // Import ini sudah benar
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:getfittoday_mobile/utils/maps_loader.dart' if (dart.library.html) 'package:getfittoday_mobile/utils/maps_loader_web.dart';
 
 Future<void> main() async {
+  // Tambahkan ini biar aman saat inisialisasi async
+  WidgetsFlutterBinding.ensureInitialized();
+
   await dotenv.load(fileName: "assets/.env");
+
+  // 👇 INI YANG PENTING:
+  // Kita load data format tanggal untuk Bahasa Indonesia ('id_ID')
+  // Tanpa baris ini, format tanggal 'EEEE' (Nama Hari) akan error
+  await initializeDateFormatting('id_ID', null);
+
   await loadGoogleMaps();
   runApp(const MyApp());
 }
@@ -90,7 +101,8 @@ class MyApp extends StatelessWidget {
           '/register': (context) => const RegisterPage(),
           '/home': (context) => const MyHomePage(),
           '/booking': (context) => const BookingReservationPage(),
-          '/store' : (context) => const ProductEntryListPage(),
+          '/community': (context) => const CommunityListPage(),
+          '/store': (context) => const ProductEntryListPage(),
           '/my-bookings': (context) => const MyBookingsPage(),
         },
       ),
