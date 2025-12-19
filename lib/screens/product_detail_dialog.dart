@@ -21,8 +21,9 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
   @override
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
-    final loggedIn = request.loggedIn;
-    final isAdmin = context.watch<AuthState>().isAdmin;
+    final auth = context.watch<AuthState>();
+    final loggedIn = auth.isLoggedIn;
+    final isAdmin = auth.isAdmin;
 
     return AlertDialog(
       backgroundColor: Colors.white,

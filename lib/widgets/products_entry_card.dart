@@ -20,8 +20,9 @@ class ProductEntryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
-    final loggedIn = request.loggedIn;
-    final isAdmin = context.watch<AuthState>().isAdmin;
+    final auth = context.watch<AuthState>();
+    final loggedIn = auth.isLoggedIn;
+    final isAdmin = auth.isAdmin;
 
     return Container(
       decoration: BoxDecoration(

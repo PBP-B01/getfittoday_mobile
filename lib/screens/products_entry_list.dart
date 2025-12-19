@@ -55,7 +55,11 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
     if (request.loggedIn) return;
     try {
       final resp = await request.get('$djangoBaseUrl/auth/whoami/');
-      final loggedIn = resp is Map && resp['logged_in'] == true;
+      final loggedIn = resp is Map &&
+          (resp['logged_in'] == true ||
+              resp['loggedIn'] == true ||
+              resp['status'] == true ||
+              resp['status'] == 'success');
       if (loggedIn) {
         request.loggedIn = true;
         request.jsonData = Map<String, dynamic>.from(resp);

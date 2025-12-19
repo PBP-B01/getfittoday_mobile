@@ -300,9 +300,11 @@ class SiteNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
-    final isAdmin = context.watch<AuthState>().isAdmin;
-    final username = _usernameFromRequest(request);
-    return Container(
+    final auth = context.watch<AuthState>();
+    final isAdmin = auth.isAdmin;
+    final username = auth.username ?? _usernameFromRequest(request);
+    return _SessionBootstrapper(
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: const BoxDecoration(
         color: primaryNavColor,
@@ -451,8 +453,73 @@ class SiteNavBar extends StatelessWidget {
           },
         ),
       ),
+      ),
     );
   }
+}
+
+class _SessionBootstrapper extends StatefulWidget {
+  final Widget child;
+
+  const _SessionBootstrapper({required this.child});
+
+  @override
+  State<_SessionBootstrapper> createState() => _SessionBootstrapperState();
+}
+
+class _SessionBootstrapperState extends State<_SessionBootstrapper> {
+  bool _started = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _bootstrap();
+    });
+  }
+
+  Future<void> _bootstrap() async {
+    if (_started) return;
+    _started = true;
+
+    final request = context.read<CookieRequest>();
+    final auth = context.read<AuthState>();
+
+    // If we already have a username + role, skip.
+    if (auth.isLoggedIn && (request.jsonData['username']?.toString().isNotEmpty ?? false)) {
+      return;
+    }
+
+    try {
+      final resp = await request.get('$djangoBaseUrl/auth/whoami/');
+      if (!mounted) return;
+
+      final map = resp is Map ? Map<String, dynamic>.from(resp) : null;
+      final loggedIn = map != null &&
+          (map['logged_in'] == true ||
+              map['loggedIn'] == true ||
+              map['status'] == true ||
+              map['status'] == 'success');
+
+      if (loggedIn) {
+        request.loggedIn = true;
+        request.jsonData = map!;
+        auth.setFromLoginResponse(
+          map!,
+          fallbackUsername: map!['username']?.toString(),
+        );
+      } else if (map != null && (map['logged_in'] == false || map['status'] == false)) {
+        request.loggedIn = false;
+        request.jsonData = {};
+        auth.clear();
+      }
+    } catch (_) {
+      // ignore errors (offline, backend down, etc)
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _NavDefinition {
