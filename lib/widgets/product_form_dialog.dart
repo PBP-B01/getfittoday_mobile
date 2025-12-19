@@ -192,23 +192,23 @@ onPressed: () async {
                 "name": _name,
                 "price": int.tryParse(_price) ?? 0, // Kirim sebagai INT
                 "image_url": _imageUrl,
-                "rating": _rating,
+                "rating": _rating.isNotEmpty ? _rating : null,
                 "units_sold": _unitsSold,
                 "store": _selectedStoreId, // Django views.py kita sudah pintar handle string/int ID ini
               };
 
               dynamic response;
               
-                  try {
-                    if (isEdit) {
-                      // === EDIT MODE (Gunakan postJson) ===
-                      response = await request.postJson(
-                    "$djangoBaseUrl/store/product/${widget.product!.pk}/edit/",
+                   try {
+                     if (isEdit) {
+                       // === EDIT MODE (Gunakan postJson) ===
+                       response = await request.postJson(
+                    "$djangoBaseUrl/store/api/product/${widget.product!.pk}/edit/",
                     jsonEncode(dataPayload), // Encode jadi JSON String
                   );
-                    } else {
-                      // === CREATE MODE ===
-                      response = await request.postJson(
+                     } else {
+                       // === CREATE MODE ===
+                       response = await request.postJson(
                     "$djangoBaseUrl/store/create-flutter/",
                     jsonEncode(dataPayload),
                   );

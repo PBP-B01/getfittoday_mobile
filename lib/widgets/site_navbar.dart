@@ -371,19 +371,19 @@ class SiteNavBar extends StatelessWidget {
                   ),
                 const SizedBox(width: 16),
                 PopupMenuButton<_ProfileMenuAction>(
-              tooltip: 'Profile',
-              offset: const Offset(0, 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              onSelected: (action) =>
-                  _handleProfileAction(context, request, action),
+                  tooltip: 'Profile',
+                  offset: const Offset(0, 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  onSelected: (action) =>
+                      _handleProfileAction(context, request, action),
                   itemBuilder: (context) => [
                     PopupMenuItem<_ProfileMenuAction>(
                       enabled: false,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                        children: [
                           const Text(
                             'Signed in as',
                             style: TextStyle(
@@ -394,58 +394,58 @@ class SiteNavBar extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             username,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          color: primaryNavColor,
-                        ),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                              color: primaryNavColor,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
                     const PopupMenuDivider(),
                     PopupMenuItem<_ProfileMenuAction>(
                       value: _ProfileMenuAction.bookings,
                       child: Text(
-                        isAdmin ? 'All Users bookings' : 'My Bookings',
+                        isAdmin ? 'All users bookings' : 'My Bookings',
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           color: primaryNavColor,
                         ),
                       ),
                     ),
-                const PopupMenuItem<_ProfileMenuAction>(
-                  value: _ProfileMenuAction.logout,
-                  child: Text(
-                    'Logout',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.redAccent,
+                    const PopupMenuItem<_ProfileMenuAction>(
+                      value: _ProfileMenuAction.logout,
+                      child: Text(
+                        'Logout',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                    ),
+                  ],
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                      color: accentColor,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color.fromARGB(60, 0, 0, 0),
+                          blurRadius: 10,
+                          offset: Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.person,
+                      color: inputTextColor,
+                      size: 22,
                     ),
                   ),
                 ),
-              ],
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: const BoxDecoration(
-                  color: accentColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color.fromARGB(60, 0, 0, 0),
-                      blurRadius: 10,
-                      offset: Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.person,
-                  color: inputTextColor,
-                  size: 22,
-                ),
-              ),
-            ),
               ],
             );
           },
