@@ -116,17 +116,31 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     } catch (_) {
       // Jika gagal dapat lokasi, gunakan data apa adanya.
     }
-    enriched.sort(_locationComparator);
+    enriched.sort(
+      (a, b) => _compareLocations(
+        a,
+        b,
+        sortByNearest: _sortByNearest,
+      ),
+    );
     if (!mounted) return;
     setState(() {
       _allLocations = enriched;
       // Saat pertama kali load, jangan aktifkan filter rating dulu.
-      _locations = _applyLocationFilters(enriched, topRatedOnly: _filterTopRated);
+      _locations = _applyLocationFilters(
+        enriched,
+        topRatedOnly: _filterTopRated,
+        sortByNearest: _sortByNearest,
+      );
     });
   }
 
-  int _locationComparator(FitnessSpot a, FitnessSpot b) {
-    if (_sortByNearest) {
+  int _compareLocations(
+    FitnessSpot a,
+    FitnessSpot b, {
+    required bool sortByNearest,
+  }) {
+    if (sortByNearest) {
       final aDist = a.distanceKm;
       final bDist = b.distanceKm;
       if (aDist != null && bDist != null) {
@@ -141,12 +155,19 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   List<FitnessSpot> _applyLocationFilters(
     List<FitnessSpot> source, {
     required bool topRatedOnly,
+    required bool sortByNearest,
   }) {
     var list = List<FitnessSpot>.from(source);
     if (topRatedOnly) {
       list = list.where((loc) => (loc.rating ?? 0) >= 4.5).toList();
     }
-    list.sort(_locationComparator);
+    list.sort(
+      (a, b) => _compareLocations(
+        a,
+        b,
+        sortByNearest: sortByNearest,
+      ),
+    );
     return list;
   }
 
@@ -198,6 +219,16 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
       distanceKm: km,
       description: spot.description,
     );
+  }
+
+  void _refreshLocationAutocompleteOptions() {
+    // RawAutocomplete hanya menghitung ulang opsi saat *teks* berubah (dia meng-cache
+    // fieldText terakhir). Saat filter berubah, teks bisa tetap sama, jadi kita
+    // "tickle" controller dengan menambah lalu mengembalikan spasi agar opsi
+    // dihitung ulang tanpa mengubah tampilan input secara permanen.
+    final original = _locationController.value;
+    _locationController.value = original.copyWith(text: '${original.text} ');
+    _locationController.value = original;
   }
 
   void _showLocationFilterSheet() {
@@ -269,6 +300,20 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                   setModalState(() {
                                     sortNearest = !sortNearest;
                                   });
+                                  // Terapkan langsung supaya user tidak perlu menekan
+                                  // tombol "Terapkan" untuk melihat perubahan.
+                                  setState(() {
+                                    _sortByNearest = sortNearest;
+                                    _locations = _applyLocationFilters(
+                                      _allLocations,
+                                      topRatedOnly: topRated,
+                                      sortByNearest: sortNearest,
+                                    );
+                                  });
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (!mounted) return;
+                                    _refreshLocationAutocompleteOptions();
+                                  });
                                 },
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(
@@ -321,6 +366,20 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                   setModalState(() {
                                     topRated = !topRated;
                                   });
+                                  // Terapkan langsung supaya state & daftar lokasi
+                                  // sinkron dengan toggle.
+                                  setState(() {
+                                    _filterTopRated = topRated;
+                                    _locations = _applyLocationFilters(
+                                      _allLocations,
+                                      topRatedOnly: topRated,
+                                      sortByNearest: sortNearest,
+                                    );
+                                  });
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (!mounted) return;
+                                    _refreshLocationAutocompleteOptions();
+                                  });
                                 },
                                 style: OutlinedButton.styleFrom(
                                   side: BorderSide(
@@ -367,14 +426,16 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                     _locations = _applyLocationFilters(
                                       _allLocations,
                                       topRatedOnly: topRated,
+                                      sortByNearest: sortNearest,
                                     );
                                   });
                                   // Paksa RawAutocomplete menghitung ulang opsi
-                                  // berdasarkan daftar lokasi terbaru.
-                                  _locationController.value =
-                                      _locationController.value.copyWith(
-                                    text: _locationController.text,
-                                  );
+                                  // berdasarkan daftar lokasi terbaru (harus setelah
+                                  // widget rebuild memakai _locations yang baru).
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (!mounted) return;
+                                    _refreshLocationAutocompleteOptions();
+                                  });
                                   Navigator.of(dialogContext).pop();
                                 },
                                 style: ElevatedButton.styleFrom(
@@ -745,6 +806,9 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                             children: [
                                               Expanded(
                                                 child: LocationSearchField(
+                                                  key: ValueKey(
+                                                    'location-autocomplete-${_sortByNearest ? 'near' : 'name'}-${_filterTopRated ? 'top' : 'all'}',
+                                                  ),
                                                   controller: _locationController,
                                                   focusNode: _locationFocusNode,
                                                   locations: _locations,
@@ -758,7 +822,13 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                                       }
                                                     });
                                                   },
-                                                  comparator: _locationComparator,
+                                                  comparator: (a, b) =>
+                                                      _compareLocations(
+                                                    a,
+                                                    b,
+                                                    sortByNearest:
+                                                        _sortByNearest,
+                                                  ),
                                                   filterTopRated: _filterTopRated,
                                                 ),
                                               ),
@@ -1043,10 +1113,15 @@ class _CalendarCard extends StatelessWidget {
           onSurface: inputTextColor,
         ),
         datePickerTheme: DatePickerThemeData(
+          // Gunakan MaterialStateProperty (meski deprecated warning) karena
+          // CalendarDatePicker masih membaca tipe ini untuk pewarnaan selected.
           dayShape: MaterialStateProperty.all(const CircleBorder()),
           dayBackgroundColor: MaterialStateProperty.resolveWith((states) {
             if (states.contains(MaterialState.selected)) {
               return primaryNavDarkerColor;
+            }
+            if (states.contains(MaterialState.disabled)) {
+              return Colors.transparent;
             }
             if (states.contains(MaterialState.hovered)) {
               return primaryNavColor.withOpacity(0.1);
@@ -1056,6 +1131,9 @@ class _CalendarCard extends StatelessWidget {
           dayForegroundColor: MaterialStateProperty.resolveWith((states) {
             if (states.contains(MaterialState.selected)) {
               return Colors.white;
+            }
+            if (states.contains(MaterialState.disabled)) {
+              return inkWeakColor.withOpacity(0.45);
             }
             return inputTextColor;
           }),
@@ -1068,10 +1146,25 @@ class _CalendarCard extends StatelessWidget {
             }
             return null;
           }),
-          todayBorder: BorderSide(
-            color: primaryNavColor.withOpacity(0.2),
-          ),
-          todayForegroundColor: MaterialStateProperty.all(primaryNavColor),
+          // Pastikan "today" juga bisa terlihat selected (default Flutter
+          // menggunakan todayForegroundColor/todayBackgroundColor terpisah).
+          todayBackgroundColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return primaryNavDarkerColor;
+            }
+            return Colors.transparent;
+          }),
+          todayForegroundColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return Colors.white;
+            }
+            if (states.contains(MaterialState.disabled)) {
+              return inkWeakColor.withOpacity(0.45);
+            }
+            return primaryNavColor;
+          }),
+          // Hilangkan border "today" supaya tidak jadi outline putih saat selected.
+          todayBorder: const BorderSide(color: Colors.transparent, width: 0),
         ),
       ),
       child: CalendarDatePicker(
@@ -1582,6 +1675,13 @@ class LocationSearchField extends StatelessWidget {
                           false),
                 )
                 .toList();
+
+        if (filterTopRated) {
+          filtered = filtered
+              .where((loc) => (loc.rating ?? 0) >= minRating)
+              .toList();
+        }
+
         filtered.sort(comparator);
         return filtered;
       },

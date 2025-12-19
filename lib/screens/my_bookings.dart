@@ -133,6 +133,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                             return _BookingCard(
                               reservation: reservation,
                               onChanged: _refresh,
+                              allReservations: reservations,
                             );
                           },
                           separatorBuilder: (context, index) =>
@@ -268,11 +269,31 @@ class _EmptyState extends StatelessWidget {
 class _BookingCard extends StatelessWidget {
   final Reservation reservation;
   final Future<void> Function() onChanged;
+  final List<Reservation> allReservations;
 
   const _BookingCard({
     required this.reservation,
     required this.onChanged,
+    required this.allReservations,
   });
+
+  static const List<String> _hourSlots = <String>[
+    '08:00',
+    '09:00',
+    '10:00',
+    '11:00',
+    '12:00',
+    '13:00',
+    '14:00',
+    '15:00',
+    '16:00',
+    '17:00',
+    '18:00',
+    '19:00',
+    '20:00',
+    '21:00',
+    '22:00',
+  ];
 
   Color _statusColor(String status) {
     final normalized = status.toLowerCase();
@@ -286,6 +307,13 @@ class _BookingCard extends StatelessWidget {
       return Colors.grey.shade600;
     }
     return Colors.orange.shade600;
+  }
+
+  TimeOfDay _timeOf(String label) {
+    final parts = label.split(':');
+    final h = int.tryParse(parts.first) ?? 0;
+    final m = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    return TimeOfDay(hour: h, minute: m);
   }
 
   @override
@@ -762,13 +790,129 @@ class _BookingCard extends StatelessWidget {
                         ),
                       ),
                       onPressed: () async {
-                        final picked = await showTimePicker(
+                        final chosen = await showDialog<TimeOfDay>(
                           context: dialogContext,
-                          initialTime: selectedTime,
+                          barrierDismissible: true,
+                          builder: (context) {
+                            final today = DateTime.now();
+                            final isToday = selectedDate.year == today.year &&
+                                selectedDate.month == today.month &&
+                                selectedDate.day == today.day;
+
+                            // Slot yang sudah dipakai (selain booking ini) pada tanggal yang sama.
+                            final blocked = allReservations.where((r) {
+                              if (r.id == reservation.id) return false;
+                              if (r.isClosed) return false;
+                              final start = r.startDateTime;
+                              if (start == null) return false;
+                              final sameDay = start.year == selectedDate.year &&
+                                  start.month == selectedDate.month &&
+                                  start.day == selectedDate.day;
+                              if (!sameDay) return false;
+                              return true;
+                            }).map((r) {
+                              final h = r.startDateTime!.hour;
+                              return '${h.toString().padLeft(2, '0')}:00';
+                            }).toSet();
+
+                            TimeOfDay tempSelected = selectedTime;
+
+                            return StatefulBuilder(
+                              builder: (context, setStateDialog) {
+                                return AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  contentPadding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                                  actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                                  content: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 420),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Pilih jam',
+                                          style: GoogleFonts.inter(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 18,
+                                            color: inputTextColor,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 14),
+                                        Wrap(
+                                          spacing: 10,
+                                          runSpacing: 10,
+                                          children: [
+                                            for (final slot in _hourSlots)
+                                              Builder(
+                                                builder: (context) {
+                                                  final isBlocked = blocked.contains(slot);
+                                                  final slotTime = _timeOf(slot);
+                                                  final isPast = isToday &&
+                                                      (slotTime.hour < today.hour ||
+                                                          (slotTime.hour == today.hour &&
+                                                              slotTime.minute <= today.minute));
+                                                  final disabled = isBlocked || isPast;
+                                                  final selectedSlot =
+                                                      tempSelected.hour == slotTime.hour &&
+                                                          tempSelected.minute == slotTime.minute;
+                                                  return Opacity(
+                                                    opacity: disabled ? 0.35 : 1.0,
+                                                    child: ChoiceChip(
+                                                      label: Text(
+                                                        slot,
+                                                        style: GoogleFonts.inter(
+                                                          fontWeight: FontWeight.w700,
+                                                          color: disabled
+                                                              ? Colors.black54
+                                                              : selectedSlot
+                                                                  ? Colors.white
+                                                                  : inputTextColor,
+                                                        ),
+                                                      ),
+                                                      selected: selectedSlot && !disabled,
+                                                      selectedColor: primaryNavColor,
+                                                      backgroundColor: const Color(0xFFF5F7FB),
+                                                      onSelected: disabled
+                                                          ? null
+                                                          : (_) => setStateDialog(() {
+                                                                tempSelected = slotTime;
+                                                              }),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(),
+                                      child: const Text('Batal'),
+                                    ),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: primaryNavColor,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      onPressed: () => Navigator.of(context).pop(tempSelected),
+                                      child: const Text('OK'),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
                         );
-                        if (picked != null) {
+                        if (chosen != null) {
                           setState(() {
-                            selectedTime = picked;
+                            selectedTime = chosen;
                           });
                         }
                       },

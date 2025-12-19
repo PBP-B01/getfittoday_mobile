@@ -9,6 +9,7 @@ import 'package:getfittoday_mobile/widgets/products_entry_card.dart';
 import 'package:getfittoday_mobile/widgets/product_form_dialog.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 
 // =====PERUBAHAN BARU=====
 // Import constants & SiteNavBar supaya background dan navbar Store sama dengan Home
@@ -75,11 +76,18 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
     });
 
     final response = await request.get(url.toString());
-    
-    if (response is! List) return [];
+
+    final List<dynamic> rawProducts;
+    if (response is List) {
+      rawProducts = response;
+    } else if (response is Map<String, dynamic> && response['products'] is List) {
+      rawProducts = response['products'] as List<dynamic>;
+    } else {
+      return [];
+    }
 
     List<Product> listProduct = [];
-    for (var d in response) {
+    for (var d in rawProducts) {
       if (d != null) listProduct.add(Product.fromJson(d));
     }
     return listProduct;
@@ -88,10 +96,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
   @override
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
-    
-    // === MODE ADMIN: UBAH JADI TRUE UNTUK LIHAT HASIL ===
-    final bool isAdmin = false;
-    // ===================================================
+    final isAdmin = context.watch<AuthState>().isAdmin;
 
     // =====PERUBAHAN BARU=====
     // Gunakan Scaffold tanpa AppBar tapi dengan Container gradient agar sama seperti Home

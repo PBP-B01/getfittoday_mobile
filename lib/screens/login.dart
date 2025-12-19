@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/screens/home.dart';
 import 'package:getfittoday_mobile/screens/register.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
@@ -123,6 +124,10 @@ class _LoginPageState extends State<LoginPage> {
                               final message =
                                   response['message'] ?? 'Login successful!';
                               final uname = response['username'] ?? username;
+                              context.read<AuthState>().setFromLoginResponse(
+                                    Map<String, dynamic>.from(response),
+                                    fallbackUsername: uname,
+                                  );
 
                               Navigator.pushReplacement(
                                 context,

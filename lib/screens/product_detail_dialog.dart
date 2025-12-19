@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/models/product.dart';
+import 'package:getfittoday_mobile/constants.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:getfittoday_mobile/widgets/product_form_dialog.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
@@ -19,11 +21,8 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
   @override
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
-    
-    // === HARDCODE STATUS ===
-    final bool loggedIn = false; 
-    final bool isAdmin = false; 
-    // =======================
+    final loggedIn = request.loggedIn;
+    final isAdmin = context.watch<AuthState>().isAdmin;
 
     return AlertDialog(
       backgroundColor: Colors.white,
@@ -162,7 +161,11 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
       width: double.infinity,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEEF2FF), foregroundColor: const Color(0xFF4F46E5)),
-        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fitur Login belum tersedia"))),
+        onPressed: () {
+          final navigator = Navigator.of(context);
+          navigator.pop();
+          navigator.pushNamed('/login');
+        },
         child: const Text("Login untuk Beli"),
       ),
     );
@@ -232,7 +235,7 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                       onPressed: () async {
                         Navigator.pop(ctx); // Tutup Konfirmasi
-                        final response = await request.post("http://127.0.0.1:8000/store/product/${widget.product.pk}/delete/", {});
+                        final response = await request.post("$djangoBaseUrl/store/product/${widget.product.pk}/delete/", {});
                         if (response['success'] == true) {
                           if(mounted) {
                              Navigator.pop(context); // Tutup Detail Pop-up

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/models/product.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
+import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/widgets/product_form_dialog.dart';
 import 'package:getfittoday_mobile/screens/product_detail_dialog.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
@@ -18,30 +20,8 @@ class ProductEntryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
-
-    // SIMULASI LOGIN & ROLE
-    // =====PERUBAHAN BARU=====
-    // Ganti hardcoded true/false dengan deteksi dari CookieRequest:
-    bool loggedIn = false;
-    bool isAdmin = false;
-
-    final data = request.jsonData;
-    if (data is Map) {
-      // contoh: request.jsonData mungkin berisi 'username' ketika login
-      if ((data['username'] is String && (data['username'] as String).isNotEmpty) ||
-          (request.cookies['username']?.value != null && request.cookies['username']!.value.isNotEmpty)) {
-        loggedIn = true;
-      }
-      // jika backend mengirimkan informasi admin di jsonData (opsional)
-      if (data['is_superuser'] == true || data['is_admin'] == true) {
-        isAdmin = true;
-      }
-    } else {
-      // fallback: cek cookie username
-      final cookie = request.cookies['username'];
-      if (cookie != null && cookie.value.isNotEmpty) loggedIn = true;
-    }
-    // =====PERUBAHAN BARU=====
+    final loggedIn = request.loggedIn;
+    final isAdmin = context.watch<AuthState>().isAdmin;
 
     return Container(
       decoration: BoxDecoration(
@@ -369,7 +349,7 @@ class ProductEntryCard extends StatelessWidget {
                             onPressed: () async {
                               Navigator.pop(context);
                               final response = await request.post(
-                                "http://127.0.0.1:8000/store/product/${product.pk}/delete/",
+                                "$djangoBaseUrl/store/product/${product.pk}/delete/",
                                 {},
                               );
 

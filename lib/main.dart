@@ -6,6 +6,7 @@ import 'package:getfittoday_mobile/screens/login.dart';
 import 'package:getfittoday_mobile/screens/register.dart';
 import 'package:getfittoday_mobile/screens/products_entry_list.dart';
 import 'package:getfittoday_mobile/screens/my_bookings.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
@@ -35,8 +36,11 @@ class MyApp extends StatelessWidget {
       onSecondary: const Color(0xFF0B2E55),
     );
 
-    return Provider<CookieRequest>(
-      create: (_) => CookieRequest(),
+    return MultiProvider(
+      providers: [
+        Provider<CookieRequest>(create: (_) => CookieRequest()),
+        ChangeNotifierProvider<AuthState>(create: (_) => AuthState()),
+      ],
       child: MaterialApp(
         title: 'GetFitToday',
         theme: ThemeData(

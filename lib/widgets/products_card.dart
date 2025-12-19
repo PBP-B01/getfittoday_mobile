@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/screens/products_entry_list.dart';
 import 'package:getfittoday_mobile/screens/productslist_form.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 // import 'package:getfittoday_mobile/screens/login.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
@@ -39,14 +40,16 @@ class ItemCard extends StatelessWidget {
             String message = response["message"];
             if (context.mounted) {
               if (response['status']) {
+                context.read<AuthState>().clear();
                 String uname = response["username"] ?? "";
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text("$message Sampai jumpa, $uname."),
                 ));
-                // Navigator.pushReplacement(
-                //   context,
-                //   MaterialPageRoute(builder: (context) => const LoginPage()),
-                // );
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/login',
+                  (route) => false,
+                );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text(message),

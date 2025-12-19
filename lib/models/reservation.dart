@@ -35,6 +35,11 @@ class Reservation {
       final endIso = json['end']?.toString();
       final startDateTime = _parseIsoDateTime(startIso);
       final endDateTime = _parseIsoDateTime(endIso);
+      final effectiveStatus = _effectiveStatusForTime(
+        normalizedStatus,
+        start: startDateTime,
+        end: endDateTime,
+      );
 
       final location = json['place_name']?.toString() ?? 'Lokasi belum diisi';
       final title = (json['title']?.toString().trim().isNotEmpty ?? false)
@@ -50,7 +55,7 @@ class Reservation {
         id: idValue,
         title: title,
         location: location,
-        status: normalizedStatus,
+        status: effectiveStatus,
         scheduleDisplay:
             schedule.isEmpty ? 'Jadwal belum diisi' : schedule,
         startDateTime: startDateTime,
@@ -64,6 +69,13 @@ class Reservation {
     final rawDate = json['date']?.toString() ?? '';
     final rawTime = json['time']?.toString() ?? '';
     final parsedDateTime = _parseDateFromParts(rawDate, rawTime);
+    final effectiveStatus = _effectiveStatusForTime(
+      normalizedStatus,
+      start: parsedDateTime,
+      end: parsedDateTime != null
+          ? parsedDateTime.add(const Duration(hours: 1))
+          : null,
+    );
     final schedule = _buildScheduleFromParts(rawDate, rawTime);
 
     final title = json['title']?.toString() ??
@@ -74,7 +86,7 @@ class Reservation {
       id: idValue,
       title: title,
       location: json['location']?.toString() ?? 'Lokasi belum diisi',
-      status: normalizedStatus,
+      status: effectiveStatus,
       scheduleDisplay: schedule.isEmpty ? 'Jadwal belum diisi' : schedule,
       startDateTime: parsedDateTime,
       endDateTime:
@@ -183,4 +195,20 @@ bool _parseBool(dynamic value) {
   if (value is bool) return value;
   final asString = value.toString().toLowerCase().trim();
   return asString == 'true' || asString == '1' || asString == 'yes';
+}
+
+String _effectiveStatusForTime(
+  String currentStatus, {
+  DateTime? start,
+  DateTime? end,
+}) {
+  // Auto-cancel pending bookings yang sudah lewat waktunya.
+  final upper = currentStatus.toUpperCase();
+  final bool isPending = upper.contains('PENDING');
+  if (!isPending) return currentStatus;
+
+  final now = DateTime.now();
+  if (end != null && end.isBefore(now)) return 'CANCELLED';
+  if (start != null && start.isBefore(now)) return 'CANCELLED';
+  return currentStatus;
 }
