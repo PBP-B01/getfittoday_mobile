@@ -179,7 +179,7 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
         label: const Text("Tambah ke Keranjang"),
         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5), foregroundColor: Colors.white),
         onPressed: () async {
-          final response = await request.post("http://127.0.0.1:8000/store/product/${widget.product.pk}/add-to-cart/", {"quantity": "1"});
+          final response = await request.post("$djangoBaseUrl/store/product/${widget.product.pk}/add-to-cart/", {"quantity": "1"});
           if (mounted) {
             if (response['success'] == true) {
               Navigator.pop(context); // Tutup Pop-up Detail

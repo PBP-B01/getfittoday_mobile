@@ -80,7 +80,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
   Future<void> _updateCartCount() async {
     final request = context.read<CookieRequest>();
     try {
-      final response = await request.get('http://127.0.0.1:8000/store/api/cart/');
+      final response = await request.get('$djangoBaseUrl/store/api/cart/');
       if (response is Map<String, dynamic> && response['status'] == 'success') {
           final cart = Cart.fromJson(response);
           setState(() {
@@ -93,7 +93,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
   }
 
   Future<List<Product>> fetchProduct(CookieRequest request) async {
-    final url = Uri.parse('http://127.0.0.1:8000/store/api/products/').replace(queryParameters: {
+    final url = Uri.parse('$djangoBaseUrl/store/api/products/').replace(queryParameters: {
       'q': _appliedSearchQuery,
       'sort': _appliedSortOption,
     });

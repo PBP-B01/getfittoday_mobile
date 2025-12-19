@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/models/product.dart';
 import 'package:getfittoday_mobile/screens/products_entry_list.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
@@ -14,7 +15,7 @@ class CartPage extends StatefulWidget {
 
 class _CartPageState extends State<CartPage> {
   Future<Cart> fetchCart(CookieRequest request) async {
-    final response = await request.get('http://127.0.0.1:8000/store/api/cart/');
+    final response = await request.get('$djangoBaseUrl/store/api/cart/');
     return Cart.fromJson(response);
   }
 
@@ -102,7 +103,7 @@ class _CartPageState extends State<CartPage> {
                                           int newQty = item.quantity - 1;
                                           if (newQty < 1) return;
                                           await request.postJson(
-                                            'http://127.0.0.1:8000/store/cart/update/${item.product.pk}/',
+                                            '$djangoBaseUrl/store/cart/update/${item.product.pk}/',
                                             jsonEncode({"quantity": newQty})
                                           );
                                           refreshCart();
@@ -121,7 +122,7 @@ class _CartPageState extends State<CartPage> {
                                         onTap: () async {
                                           int newQty = item.quantity + 1;
                                           await request.postJson(
-                                            'http://127.0.0.1:8000/store/cart/update/${item.product.pk}/',
+                                            '$djangoBaseUrl/store/cart/update/${item.product.pk}/',
                                             jsonEncode({"quantity": newQty})
                                           );
                                           refreshCart();
@@ -170,7 +171,7 @@ class _CartPageState extends State<CartPage> {
                                           onPressed: () async {
                                             Navigator.pop(ctx); // Tutup Dialog
                                             // API HAPUS
-                                            await request.post('http://127.0.0.1:8000/store/cart/remove/${item.product.pk}/', {});
+                                            await request.post('$djangoBaseUrl/store/cart/remove/${item.product.pk}/', {});
                                             refreshCart();
                                             
                                             // SNACKBAR HIJAU (Item berhasil dihapus)
@@ -268,7 +269,7 @@ class _CartPageState extends State<CartPage> {
                                       style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
                                       onPressed: () async {
                                         Navigator.pop(ctx); 
-                                        final response = await request.post('http://127.0.0.1:8000/store/cart/checkout/', {});
+                                        final response = await request.post('$djangoBaseUrl/store/cart/checkout/', {});
                                         if (context.mounted) {
                                           if (response['success'] == true) {
                                             showDialog(
