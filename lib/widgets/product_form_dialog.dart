@@ -6,7 +6,7 @@ import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 
 class ProductFormDialog extends StatefulWidget {
-  final Product? product; // Jika null = Mode Tambah
+  final Product? product;
   final Function() onSave;
 
   const ProductFormDialog({super.key, this.product, required this.onSave});
@@ -17,15 +17,15 @@ class ProductFormDialog extends StatefulWidget {
 
 class _ProductFormDialogState extends State<ProductFormDialog> {
   final _formKey = GlobalKey<FormState>();
-  
+
   late String _name;
   late String _price;
   late String _imageUrl;
   late String _rating;
   late String _unitsSold;
-  String? _selectedStoreId; // Untuk Dropdown
+  String? _selectedStoreId;
 
-  List<dynamic> _fitnessSpots = []; // List Toko dari Database
+  List<dynamic> _fitnessSpots = [];
 
   @override
   void initState() {
@@ -35,12 +35,9 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     _imageUrl = widget.product?.fields.imageUrl ?? "";
     _rating = widget.product?.fields.rating ?? "";
     _unitsSold = widget.product?.fields.unitsSold ?? "";
-    
-    // Ambil ID Toko yang sudah ada (jika edit)
-    // Pastikan konversi ke String agar cocok dengan value dropdown
-    _selectedStoreId = widget.product?.fields.store?.toString(); 
 
-    // Fetch data toko saat dialog dibuka
+    _selectedStoreId = widget.product?.fields.store?.toString();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchFitnessSpots();
     });
@@ -66,7 +63,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     final bool isEdit = widget.product != null;
 
     return AlertDialog(
-      // Judul Dialog
       title: Center(
         child: Column(
           children: [
@@ -84,14 +80,13 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       ),
       content: SingleChildScrollView(
         child: SizedBox(
-          width: 400, // Lebar dialog
+          width: 400,
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Nama Produk
                 _buildLabel("Nama Produk"),
                 TextFormField(
                   initialValue: _name,
@@ -101,7 +96,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                // 2. Harga
                 _buildLabel("Harga (Rp)"),
                 TextFormField(
                   initialValue: _price,
@@ -112,7 +106,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                // 3. Rating
                 _buildLabel("Rating"),
                 TextFormField(
                   initialValue: _rating,
@@ -123,7 +116,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                // 4. Jumlah Terjual
                 _buildLabel("Jumlah Terjual"),
                 TextFormField(
                   initialValue: _unitsSold,
@@ -132,7 +124,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                // 5. URL Gambar
                 _buildLabel("URL Gambar"),
                 TextFormField(
                   initialValue: _imageUrl,
@@ -142,7 +133,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                 ),
                 const SizedBox(height: 12),
 
-                // 6. Toko (Dropdown)
                 _buildLabel("Toko (Fitness Spot)"),
                 DropdownButtonFormField<String>(
                   decoration: _inputDecoration("-- Pilih Toko --"),
@@ -150,7 +140,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                   isExpanded: true,
                   items: _fitnessSpots.map<DropdownMenuItem<String>>((spot) {
                     return DropdownMenuItem<String>(
-                      value: spot['id'].toString(), // Value harus String agar cocok
+                      value: spot['id'].toString(),
                       child: Text(
                         spot['name'],
                         overflow: TextOverflow.ellipsis,
@@ -182,34 +172,30 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.amber,
-            foregroundColor: Colors.black, // Text hitam sesuai gambar
+            foregroundColor: Colors.black,
             elevation: 0,
           ),
 onPressed: () async {
             if (_formKey.currentState!.validate()) {
-              
-              // Siapkan data dalam bentuk Map
-              // Pastikan konversi ke tipe data yang benar (int untuk price & store)
+
               final Map<String, dynamic> dataPayload = {
                 "name": _name,
-                "price": int.tryParse(_price) ?? 0, // Kirim sebagai INT
+                "price": int.tryParse(_price) ?? 0,
                 "image_url": _imageUrl,
                 "rating": _rating.isNotEmpty ? _rating : null,
                 "units_sold": _unitsSold,
-                "store": _selectedStoreId, // Django views.py kita sudah pintar handle string/int ID ini
+                "store": _selectedStoreId,
               };
 
               dynamic response;
-              
+
                    try {
                      if (isEdit) {
-                       // === EDIT MODE (Gunakan postJson) ===
                        response = await request.postJson(
                     "$djangoBaseUrl/store/api/product/${widget.product!.pk}/edit/",
-                    jsonEncode(dataPayload), // Encode jadi JSON String
+                    jsonEncode(dataPayload),
                   );
                      } else {
-                       // === CREATE MODE ===
                        response = await request.postJson(
                     "$djangoBaseUrl/store/create-flutter/",
                     jsonEncode(dataPayload),
@@ -218,8 +204,8 @@ onPressed: () async {
 
                 if (context.mounted) {
                   if (response['success'] == true || response['status'] == 'success') {
-                    Navigator.pop(context); // Tutup Dialog
-                    widget.onSave(); // Refresh List
+                    Navigator.pop(context);
+                    widget.onSave();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(response['message'] ?? "Berhasil disimpan!"),
@@ -236,7 +222,6 @@ onPressed: () async {
                   }
                 }
               } catch (e) {
-                // Tangkap error koneksi/parsing
                 if(context.mounted) {
                    ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text("Terjadi kesalahan: $e"), backgroundColor: Colors.red),
@@ -251,7 +236,6 @@ onPressed: () async {
     );
   }
 
-  // Helper untuk Label
   Widget _buildLabel(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6.0),
@@ -262,7 +246,6 @@ onPressed: () async {
     );
   }
 
-  // Helper untuk Style Input
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,

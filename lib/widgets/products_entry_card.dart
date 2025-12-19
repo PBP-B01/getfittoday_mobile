@@ -41,7 +41,6 @@ class ProductEntryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // === 1. GAMBAR PRODUK (Compact: Flex 5) ===
           Expanded(
             flex: 5,
             child: ClipRRect(
@@ -64,7 +63,6 @@ class ProductEntryCard extends StatelessWidget {
             ),
           ),
 
-          // === 2. KONTEN (Compact: Flex 9) ===
           Expanded(
             flex: 9,
             child: Padding(
@@ -72,21 +70,19 @@ class ProductEntryCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Nama Produk
                   Text(
                     product.fields.name,
                     style: const TextStyle(
-                      fontSize: 13, // Ukuran font pas di HP kecil
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       height: 1.1,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  
+
                   const SizedBox(height: 4),
 
-                  // Toko
                   Row(
                     children: [
                       const Icon(Icons.store_mall_directory, size: 12, color: Colors.grey),
@@ -104,7 +100,6 @@ class ProductEntryCard extends StatelessWidget {
 
                   const SizedBox(height: 4),
 
-                  // Harga
                   Text(
                     "Rp ${product.fields.price}",
                     style: const TextStyle(
@@ -116,7 +111,6 @@ class ProductEntryCard extends StatelessWidget {
 
                   const SizedBox(height: 2),
 
-                  // Rating & Terjual
                   Row(
                     children: [
                       const Icon(Icons.star, size: 12, color: Colors.amber),
@@ -130,13 +124,12 @@ class ProductEntryCard extends StatelessWidget {
                     ],
                   ),
 
-                  const Spacer(), // Mendorong tombol ke paling bawah
+                  const Spacer(),
 
-                  // === TOMBOL AKSI ===
                   if (!loggedIn)
                     _buildCompactButton(
                       context,
-                      label: "Login utk Beli",
+                      label: "Login untuk beli",
                       color: const Color(0xFFF0EBFF),
                       textColor: const Color(0xFF6B46C1),
                       onPressed: () => Navigator.pushNamed(context, '/login'),
@@ -154,23 +147,22 @@ class ProductEntryCard extends StatelessWidget {
     );
   }
 
-  // Helper untuk tombol compact (tinggi 30px)
   Widget _buildCompactButton(BuildContext context, {
-    required String label, 
-    required Color color, 
-    required Color textColor, 
+    required String label,
+    required Color color,
+    required Color textColor,
     required VoidCallback onPressed,
     IconData? icon
   }) {
     return SizedBox(
       width: double.infinity,
-      height: 30, // Hemat tempat
+      height: 30,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
           foregroundColor: textColor,
-          padding: EdgeInsets.zero, // Hilangkan padding bawaan
+          padding: EdgeInsets.zero,
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
@@ -185,13 +177,12 @@ class ProductEntryCard extends StatelessWidget {
     );
   }
 
-  // Tombol User Biasa
   Widget _buildUserButtons(BuildContext context, CookieRequest request) {
     return Column(
       children: [
         _buildCompactButton(
           context,
-          label: "View",
+          label: "View Product",
           icon: Icons.visibility,
           color: Colors.purple,
           textColor: Colors.white,
@@ -227,13 +218,12 @@ class ProductEntryCard extends StatelessWidget {
     );
   }
 
-  // Tombol Admin
   Widget _buildAdminButtons(BuildContext context, CookieRequest request) {
     return Column(
       children: [
         _buildCompactButton(
           context,
-          label: "View",
+          label: "View Product",
           icon: Icons.visibility,
           color: Colors.purple,
           textColor: Colors.white,

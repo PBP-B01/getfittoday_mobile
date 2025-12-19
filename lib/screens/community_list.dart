@@ -43,7 +43,7 @@ class _CommunityListPageState extends State<CommunityListPage> {
       context,
       MaterialPageRoute(builder: (context) => const CommunityFormPage()),
     );
-    setState(() {}); 
+    setState(() {});
   }
 
   @override
@@ -51,15 +51,15 @@ class _CommunityListPageState extends State<CommunityListPage> {
     final request = context.watch<CookieRequest>();
 
     return Scaffold(
-      backgroundColor: Colors.transparent, 
+      backgroundColor: Colors.transparent,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFFEAF2FF), 
-              Color(0xFFBFD6F2), 
+              Color(0xFFEAF2FF),
+              Color(0xFFBFD6F2),
             ],
           ),
         ),
@@ -89,10 +89,10 @@ class _CommunityListPageState extends State<CommunityListPage> {
                                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none, 
+                                  borderSide: BorderSide.none,
                                 ),
                                 filled: true,
-                                fillColor: Colors.white, 
+                                fillColor: Colors.white,
                               ),
                             ),
                           ),
@@ -103,7 +103,7 @@ class _CommunityListPageState extends State<CommunityListPage> {
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: primaryNavColor, 
+                                color: primaryNavColor,
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
@@ -120,11 +120,10 @@ class _CommunityListPageState extends State<CommunityListPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // --- TOGGLE BUTTONS ---
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.6), 
+                          color: Colors.white.withOpacity(0.6),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.white.withOpacity(0.5)),
                         ),
@@ -141,7 +140,6 @@ class _CommunityListPageState extends State<CommunityListPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // --- LIST DATA ---
                       FutureBuilder(
                         future: fetchCommunities(request),
                         builder: (context, AsyncSnapshot snapshot) {
@@ -184,7 +182,7 @@ class _CommunityListPageState extends State<CommunityListPage> {
                               return Padding(
                                 padding: const EdgeInsets.only(top: 40),
                                 child: Text(
-                                  _searchQuery.isNotEmpty 
+                                  _searchQuery.isNotEmpty
                                       ? "No results found."
                                       : (isAllCommunities ? "No communities available." : "You haven't joined any community yet."),
                                   style: GoogleFonts.inter(color: Colors.grey[700]),
@@ -195,7 +193,7 @@ class _CommunityListPageState extends State<CommunityListPage> {
                             return ListView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
-                              itemCount: finalData.length, 
+                              itemCount: finalData.length,
                               itemBuilder: (_, index) {
                                 Community community = finalData[index];
                                 return _buildCommunityCard(context, community);
@@ -249,11 +247,11 @@ class _CommunityListPageState extends State<CommunityListPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20), 
-        border: Border.all(color: const Color(0xFFC8DDF6)), 
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFC8DDF6)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0D2B3F).withOpacity(0.08), 
+            color: const Color(0xFF0D2B3F).withOpacity(0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -290,9 +288,9 @@ class _CommunityListPageState extends State<CommunityListPage> {
                     Text(
                       community.name,
                       style: GoogleFonts.inter(
-                        fontSize: 18, 
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF1B2B5A), 
+                        color: const Color(0xFF1B2B5A),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -317,7 +315,7 @@ class _CommunityListPageState extends State<CommunityListPage> {
                 style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: const Color(0xFF6B7A99)),
               ),
               const SizedBox(width: 16),
-              const Icon(Icons.fitness_center, size: 18, color: Color(0xFF6B7A99)), 
+              const Icon(Icons.fitness_center, size: 18, color: Color(0xFF6B7A99)),
               const SizedBox(width: 6),
               Text(
                 community.category ?? "General",
@@ -341,7 +339,7 @@ class _CommunityListPageState extends State<CommunityListPage> {
                 side: const BorderSide(color: primaryNavColor, width: 1.5),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                backgroundColor: Colors.white, 
+                backgroundColor: Colors.white,
               ),
               child: Text(
                 "View",

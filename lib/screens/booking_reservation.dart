@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/models/fitness_spot.dart';
@@ -42,6 +42,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   late Future<List<Reservation>> _reservationsFuture;
   late Future<void> _locationsFuture;
   bool _futureInitialized = false;
+  bool _sessionChecked = false;
   List<FitnessSpot> _allLocations = const [];
   List<FitnessSpot> _locations = const [];
   List<Reservation> _myReservations = const [];
@@ -55,7 +56,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     '4 Jam',
     '5 Jam',
   ];
-  static const int _closingHour = 22; // 22:00 adalah jam tutup
+  static const int _closingHour = 22;
 
   @override
   void initState() {
@@ -89,8 +90,13 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   Future<void> _bootstrapSession(CookieRequest request) async {
     await _ensureSession(request);
     if (!mounted) return;
-    _reloadReservations(request);
-    _locationsFuture = _loadLocations(request);
+    final loggedIn =
+        context.read<AuthState>().isLoggedIn || request.loggedIn;
+    if (loggedIn) {
+      _reloadReservations(request);
+      _locationsFuture = _loadLocations(request);
+    }
+    setState(() => _sessionChecked = true);
   }
 
   Future<void> _ensureSession(CookieRequest request) async {
@@ -113,7 +119,6 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
         }
       }
     } catch (_) {
-      // ignore errors; user treated as logged out
     }
   }
 
@@ -128,7 +133,6 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
         setState(() => _myReservations = result);
       }
     } catch (_) {
-      // handled by UI FutureBuilder
     }
   }
 
@@ -147,7 +151,6 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
             .toList();
       }
     } catch (_) {
-      // Jika gagal dapat lokasi, gunakan data apa adanya.
     }
     enriched.sort(
       (a, b) => _compareLocations(
@@ -159,7 +162,6 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     if (!mounted) return;
     setState(() {
       _allLocations = enriched;
-      // Saat pertama kali load, jangan aktifkan filter rating dulu.
       _locations = _applyLocationFilters(
         enriched,
         topRatedOnly: _filterTopRated,
@@ -255,10 +257,6 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   }
 
   void _refreshLocationAutocompleteOptions() {
-    // RawAutocomplete hanya menghitung ulang opsi saat *teks* berubah (dia meng-cache
-    // fieldText terakhir). Saat filter berubah, teks bisa tetap sama, jadi kita
-    // "tickle" controller dengan menambah lalu mengembalikan spasi agar opsi
-    // dihitung ulang tanpa mengubah tampilan input secara permanen.
     final original = _locationController.value;
     _locationController.value = original.copyWith(text: '${original.text} ');
     _locationController.value = original;
@@ -333,8 +331,6 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                   setModalState(() {
                                     sortNearest = !sortNearest;
                                   });
-                                  // Terapkan langsung supaya user tidak perlu menekan
-                                  // tombol "Terapkan" untuk melihat perubahan.
                                   setState(() {
                                     _sortByNearest = sortNearest;
                                     _locations = _applyLocationFilters(
@@ -399,8 +395,6 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                   setModalState(() {
                                     topRated = !topRated;
                                   });
-                                  // Terapkan langsung supaya state & daftar lokasi
-                                  // sinkron dengan toggle.
                                   setState(() {
                                     _filterTopRated = topRated;
                                     _locations = _applyLocationFilters(
@@ -462,9 +456,6 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                       sortByNearest: sortNearest,
                                     );
                                   });
-                                  // Paksa RawAutocomplete menghitung ulang opsi
-                                  // berdasarkan daftar lokasi terbaru (harus setelah
-                                  // widget rebuild memakai _locations yang baru).
                                   WidgetsBinding.instance.addPostFrameCallback((_) {
                                     if (!mounted) return;
                                     _refreshLocationAutocompleteOptions();
@@ -638,7 +629,6 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     final payload = {
       'resource_id': resourceId,
       'resource_label': resourceLabel,
-      // Kirim dalam UTC agar backend (yang menganggap naive sebagai UTC) tetap benar
       'start_time': start.toUtc().toIso8601String(),
       'end_time': end.toUtc().toIso8601String(),
       'title': titleValue,
@@ -713,6 +703,142 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   @override
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
+    final auth = context.watch<AuthState>();
+    final isLoggedIn = auth.isLoggedIn || request.loggedIn;
+
+    if (!_sessionChecked) {
+      return Scaffold(
+        body: Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [gradientStartColor, gradientEndColor],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: const Column(
+            children: [
+              SiteNavBar(active: NavDestination.booking),
+              Expanded(
+                child: Center(
+                  child: CircularProgressIndicator(color: primaryNavColor),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (!isLoggedIn) {
+      return Scaffold(
+        body: Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [gradientStartColor, gradientEndColor],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: Column(
+            children: [
+              const SiteNavBar(active: NavDestination.booking),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16.0),
+                        border: Border.all(color: cardBorderColor),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color.fromARGB(32, 13, 43, 63),
+                            offset: Offset(0, 12),
+                            blurRadius: 28,
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24.0,
+                          vertical: 22.0,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Booking',
+                              style: GoogleFonts.inter(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: titleColor,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Untuk melakukan booking, silakan login terlebih dahulu.',
+                              style: TextStyle(
+                                color: inkWeakColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pushReplacementNamed(
+                                    context,
+                                    '/home',
+                                  ),
+                                  child: const Text('Kembali'),
+                                ),
+                                const SizedBox(width: 12),
+                                ElevatedButton(
+                                  onPressed: () =>
+                                      Navigator.pushReplacementNamed(
+                                    context,
+                                    '/login',
+                                    arguments: const {'next': '/booking'},
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: accentColor,
+                                    foregroundColor: inputTextColor,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 18,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Login',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: Container(
@@ -1167,8 +1293,6 @@ class _CalendarCard extends StatelessWidget {
           onSurface: inputTextColor,
         ),
         datePickerTheme: DatePickerThemeData(
-          // Gunakan MaterialStateProperty (meski deprecated warning) karena
-          // CalendarDatePicker masih membaca tipe ini untuk pewarnaan selected.
           dayShape: MaterialStateProperty.all(const CircleBorder()),
           dayBackgroundColor: MaterialStateProperty.resolveWith((states) {
             if (states.contains(MaterialState.selected)) {
@@ -1200,8 +1324,6 @@ class _CalendarCard extends StatelessWidget {
             }
             return null;
           }),
-          // Pastikan "today" juga bisa terlihat selected (default Flutter
-          // menggunakan todayForegroundColor/todayBackgroundColor terpisah).
           todayBackgroundColor: MaterialStateProperty.resolveWith((states) {
             if (states.contains(MaterialState.selected)) {
               return primaryNavDarkerColor;
@@ -1217,7 +1339,6 @@ class _CalendarCard extends StatelessWidget {
             }
             return primaryNavColor;
           }),
-          // Hilangkan border "today" supaya tidak jadi outline putih saat selected.
           todayBorder: const BorderSide(color: Colors.transparent, width: 0),
         ),
       ),

@@ -19,7 +19,6 @@ class _CartPageState extends State<CartPage> {
     return Cart.fromJson(response);
   }
 
-  // Fungsi untuk refresh tampilan setelah update/delete
   void refreshCart() {
     setState(() {});
   }
@@ -74,7 +73,6 @@ class _CartPageState extends State<CartPage> {
             final cart = snapshot.data!;
             return Column(
               children: [
-                // Header Tabel
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   color: Colors.grey[100],
@@ -87,8 +85,7 @@ class _CartPageState extends State<CartPage> {
                     ],
                   ),
                 ),
-                
-                // List Item
+
                 Expanded(
                   child: ListView.builder(
                     itemCount: cart.items.length,
@@ -99,32 +96,28 @@ class _CartPageState extends State<CartPage> {
                         decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade200))),
                         child: Row(
                           children: [
-                            // Nama Produk
                             Expanded(
                               flex: 3,
                               child: Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.w500)),
                             ),
-                            // Harga Satuan
                             Expanded(
                               flex: 2,
                               child: Text("Rp ${item.product.price}", style: const TextStyle(color: Colors.grey)),
                             ),
-                            // Tombol Kuantitas (+/-)
                             Expanded(
                               flex: 2,
-                              child: Align( // Tambahkan Align agar tidak melar ke samping
+                              child: Align(
                                 alignment: Alignment.centerLeft,
                                 child: Container(
-                                  width: 100, // Batasi lebar kotak agar pas
+                                  width: 100,
                                   decoration: BoxDecoration(
                                     border: Border.all(color: Colors.grey.shade300),
                                     borderRadius: BorderRadius.circular(5),
-                                    color: Colors.white, // Tambah warna background putih biar bersih
+                                    color: Colors.white,
                                   ),
                                   child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween, // Biar +/- ada di ujung
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      // Tombol Kurang
                                       InkWell(
                                         onTap: () async {
                                           int newQty = item.quantity - 1;
@@ -135,16 +128,14 @@ class _CartPageState extends State<CartPage> {
                                           );
                                           refreshCart();
                                         },
-                                        child: Container( // Bungkus icon biar area sentuh enak
+                                        child: Container(
                                           padding: const EdgeInsets.all(8),
                                           child: const Icon(Icons.remove, size: 16, color: Colors.grey),
                                         ),
                                       ),
-                                      
-                                      // Angka
+
                                       Text("${item.quantity}", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                                      
-                                      // Tombol Tambah
+
                                       InkWell(
                                         onTap: () async {
                                           int newQty = item.quantity + 1;
@@ -164,13 +155,11 @@ class _CartPageState extends State<CartPage> {
                                 ),
                               ),
                             ),
-                            // Tombol Hapus dengan Konfirmasi
                             SizedBox(
                               width: 40,
                               child: IconButton(
                                 icon: const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () {
-                                  // POPUP KONFIRMASI HAPUS
                                   showDialog(
                                     context: context,
                                     builder: (ctx) => AlertDialog(
@@ -196,12 +185,10 @@ class _CartPageState extends State<CartPage> {
                                         ElevatedButton(
                                           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                                           onPressed: () async {
-                                            Navigator.pop(ctx); // Tutup Dialog
-                                            // API HAPUS
+                                            Navigator.pop(ctx);
                                             await request.post('$djangoBaseUrl/store/cart/remove/${item.product.pk}/', {});
                                             refreshCart();
-                                            
-                                            // SNACKBAR HIJAU (Item berhasil dihapus)
+
                                             if (context.mounted) {
                                               ScaffoldMessenger.of(context).showSnackBar(
                                                 SnackBar(
@@ -241,7 +228,6 @@ class _CartPageState extends State<CartPage> {
                   ),
                 ),
 
-                // Footer Total & Checkout
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -262,14 +248,13 @@ class _CartPageState extends State<CartPage> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           ElevatedButton(
-                            onPressed: () => Navigator.pop(context), 
+                            onPressed: () => Navigator.pop(context),
                             style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.grey, side: const BorderSide(color: Colors.grey)),
                             child: const Text("Kembali Belanja"),
                           ),
                           const SizedBox(width: 12),
                           ElevatedButton(
                             onPressed: () {
-                              // POPUP KONFIRMASI CHECKOUT
                               showDialog(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
@@ -295,7 +280,7 @@ class _CartPageState extends State<CartPage> {
                                     ElevatedButton(
                                       style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
                                       onPressed: () async {
-                                        Navigator.pop(ctx); 
+                                        Navigator.pop(ctx);
                                         final response = await request.post('$djangoBaseUrl/store/cart/checkout/', {});
                                         if (context.mounted) {
                                           if (response['success'] == true) {
@@ -321,8 +306,8 @@ class _CartPageState extends State<CartPage> {
                                                   ElevatedButton(
                                                     style: ElevatedButton.styleFrom(backgroundColor: Colors.amber),
                                                     onPressed: () {
-                                                      Navigator.pop(ctxSuccess); 
-                                                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ProductEntryListPage())); 
+                                                      Navigator.pop(ctxSuccess);
+                                                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ProductEntryListPage()));
                                                     },
                                                     child: const Text("Kembali Belanja", style: TextStyle(color: Colors.black)),
                                                   ),

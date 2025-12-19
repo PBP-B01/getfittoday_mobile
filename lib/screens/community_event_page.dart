@@ -3,10 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 
-// --- IMPORT FILE LAIN ---
 import 'package:getfittoday_mobile/widgets/event_card.dart';
-import 'package:getfittoday_mobile/widgets/site_navbar.dart'; // Ditambahkan untuk versi web
-import 'package:getfittoday_mobile/constants.dart';          // Ditambahkan untuk warna/konstanta
+import 'package:getfittoday_mobile/widgets/site_navbar.dart';
+import 'package:getfittoday_mobile/constants.dart';
 import 'create_event_form.dart';
 import 'edit_event_form.dart';
 
@@ -27,16 +26,13 @@ class CommunityEventsPage extends StatefulWidget {
 }
 
 class _CommunityEventsPageState extends State<CommunityEventsPage> {
-  // --- STATE UTAMA ---
   String _selectedTab = 'community_only';
 
-  // Variabel Data
   List<Map<String, dynamic>> _allEvents = [];
   List<Map<String, dynamic>> _filteredEvents = [];
   List<String> _availableCommunities = [];
   bool _isLoading = true;
 
-  // --- STATE FILTER PANEL ---
   Key _filterPanelKey = UniqueKey();
   final TextEditingController _searchController = TextEditingController();
   String _sortOption = 'Waktu Acara (Terdekat)';
@@ -55,7 +51,6 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
     super.dispose();
   }
 
-  // --- FUNGSI FETCH DATA ---
   Future<void> _fetchEvents() async {
     setState(() => _isLoading = true);
     final request = context.read<CookieRequest>();
@@ -89,7 +84,6 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
     }
   }
 
-  // --- LOGIC FILTER UTAMA ---
   void _applyFilterLogic() {
     List<Map<String, dynamic>> temp = List.from(_allEvents);
 
@@ -117,7 +111,6 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
       }).toList();
     }
 
-    // SORTING
     temp.sort((a, b) {
       DateTime dateA = DateTime.parse(a['date'] ?? DateTime.now().toString());
       DateTime dateB = DateTime.parse(b['date'] ?? DateTime.now().toString());
@@ -137,7 +130,6 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
     });
   }
 
-  // --- ACTIONS TOMBOL FILTER ---
   void _onApplyFilter() {
     setState(() {
       _selectedTab = 'all_global';
@@ -173,7 +165,6 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
     });
   }
 
-  // --- ACTIONS API (Join, Leave) ---
   Future<void> _handleJoinEvent(int eventId) async {
     final request = context.read<CookieRequest>();
     try {
@@ -229,7 +220,6 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
     );
   }
 
-  // --- DRAWER (Hanya untuk Mobile) ---
   Widget _buildDrawer(BuildContext context) {
     const Color headerColor = Color(0xFF005960);
     return Drawer(
@@ -262,20 +252,18 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
   }
 
   Widget _buildDrawerItem(IconData icon, String title, {VoidCallback? onTap, String? trailing, bool isActive = false}) {
-    const Color iconColor = Color(0xFF005960); // Warna default hijau tua
-    const Color highlightColor = Color(0xFFFFC107); // Warna kuning sesuai gambarmu
+    const Color iconColor = Color(0xFF005960);
+    const Color highlightColor = Color(0xFFFFC107);
 
     return ListTile(
       leading: Icon(
           icon,
-          // Jika aktif pakai warna kuning, jika tidak pakai hijau tua
           color: isActive ? highlightColor : iconColor,
           size: 26
       ),
       title: Text(
         title,
         style: GoogleFonts.inter(
-          // Teks juga dibuat sedikit lebih tebal jika aktif
           color: const Color(0xFF002147),
           fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
           fontSize: 16,
@@ -326,10 +314,8 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
     );
   }
 
-  // --- WIDGET BUILDER UTAMA (DENGAN LOGIKA RESPONSIF) ---
   @override
   Widget build(BuildContext context) {
-    // Tentukan apakah tampilan saat ini adalah Mobile atau Web
     final bool isMobile = MediaQuery.of(context).size.width < 900;
 
     final Color primaryNavColor = const Color(0xFF005960);
@@ -339,17 +325,13 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
 
     return Scaffold(
       backgroundColor: backgroundBlue,
-      // Drawer hanya muncul jika Mobile
       drawer: isMobile ? _buildDrawer(context) : null,
-      // AppBar hanya muncul jika Mobile (untuk memicu Burger Menu)
       appBar: isMobile
           ? AppBar(
         backgroundColor: primaryNavColor,
         elevation: 0,
-        // Membungkus judul dengan GestureDetector agar bisa diklik
         title: GestureDetector(
           onTap: () {
-            // Menuju ke home (sesuaikan dengan nama route home di projekmu)
             Navigator.pushNamed(context, '/home');
           },
           child: Text(
@@ -377,7 +359,6 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
           : null,
       body: Column(
         children: [
-          // Tampilkan SiteNavBar jika di Web agar routing & font sama dengan halaman lain
           if (!isMobile) const SiteNavBar(active: NavDestination.community),
 
           Expanded(
@@ -385,11 +366,10 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
               child: Center(
                 child: Container(
-                  constraints: const BoxConstraints(maxWidth: 1000), // Agar konten web tidak terlalu lebar
+                  constraints: const BoxConstraints(maxWidth: 1000),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header Back
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: Row(
@@ -406,7 +386,6 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
                       Center(child: Text('Community Events', style: GoogleFonts.inter(fontSize: 28, fontWeight: FontWeight.w800, color: const Color(0xFF0D47A1)))),
                       const SizedBox(height: 24),
 
-                      // Tab Controls
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))]),
@@ -459,7 +438,6 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // --- FILTER PANEL ---
                       Container(
                         margin: const EdgeInsets.only(bottom: 24),
                         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2))]),
@@ -528,7 +506,6 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
                         ),
                       ),
 
-                      // --- LIST EVENT ---
                       if (_isLoading)
                         const Center(child: CircularProgressIndicator())
                       else if (_filteredEvents.isEmpty)
@@ -569,7 +546,6 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
     );
   }
 
-  // --- WIDGET HELPER ---
   Widget _buildFilterButton({required String label, required bool isActive, required Color activeColor, required Color inactiveColor, required VoidCallback onTap}) {
     return SizedBox(
       height: 60,

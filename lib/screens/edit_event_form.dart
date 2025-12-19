@@ -6,8 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 class EditEventForm extends StatefulWidget {
-  final Map<String, dynamic> eventData; // Data event yang mau diedit
-  final VoidCallback onSuccess; // Callback buat refresh halaman
+  final Map<String, dynamic> eventData;
+  final VoidCallback onSuccess;
 
   const EditEventForm({
     super.key,
@@ -26,7 +26,7 @@ class _EditEventFormState extends State<EditEventForm> {
   late TextEditingController _locationController;
   late TextEditingController _descController;
   late TextEditingController _dateController;
-  late TextEditingController _communityController; // Read only
+  late TextEditingController _communityController;
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -35,16 +35,14 @@ class _EditEventFormState extends State<EditEventForm> {
   @override
   void initState() {
     super.initState();
-    // 1. Isi form dengan data yang ada (Pre-fill)
     _nameController = TextEditingController(text: widget.eventData['name']);
     _locationController = TextEditingController(text: widget.eventData['location']);
     _descController = TextEditingController(text: widget.eventData['description']);
     _communityController = TextEditingController(text: widget.eventData['community_name'] ?? '-');
 
-    // 2. Parsing Tanggal Lama biar controller date keisi
     try {
       String rawDate = widget.eventData['date'];
-      if (!rawDate.endsWith('Z')) rawDate += 'Z'; // Fix UTC format
+      if (!rawDate.endsWith('Z')) rawDate += 'Z';
       DateTime dt = DateTime.parse(rawDate).toLocal();
 
       _selectedDate = dt;
@@ -55,7 +53,6 @@ class _EditEventFormState extends State<EditEventForm> {
     }
   }
 
-  // Fungsi Pilih Tanggal Baru
   Future<void> _pickDateTime() async {
     final date = await showDatePicker(
         context: context,
@@ -80,7 +77,6 @@ class _EditEventFormState extends State<EditEventForm> {
     });
   }
 
-  // --- FUNGSI UPDATE ---
   Future<void> _handleUpdate() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -106,7 +102,7 @@ class _EditEventFormState extends State<EditEventForm> {
       if (mounted) {
         if (response['status'] == 'success') {
           Navigator.pop(context);
-          widget.onSuccess(); // Refresh List
+          widget.onSuccess();
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Event berhasil diupdate!"), backgroundColor: Colors.green));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message'])));
@@ -119,9 +115,7 @@ class _EditEventFormState extends State<EditEventForm> {
     }
   }
 
-  // --- FUNGSI DELETE ---
   Future<void> _handleDelete() async {
-    // Tampilkan konfirmasi lagi biar gak kepencet
     bool confirm = await showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -147,8 +141,8 @@ class _EditEventFormState extends State<EditEventForm> {
 
       if (mounted) {
         if (response['status'] == 'success') {
-          Navigator.pop(context); // Tutup Modal
-          widget.onSuccess(); // Refresh List
+          Navigator.pop(context);
+          widget.onSuccess();
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Event berhasil dihapus."), backgroundColor: Colors.red));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message'])));
@@ -163,7 +157,6 @@ class _EditEventFormState extends State<EditEventForm> {
 
   @override
   Widget build(BuildContext context) {
-    // Styling Input (Sama kayak create form)
     final inputBorder = OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blue.withOpacity(0.2)));
     final inputDecoration = (String hint, {IconData? icon}) => InputDecoration(
         labelText: hint, prefixIcon: icon != null ? Icon(icon, size: 20, color: Colors.grey) : null, filled: true, fillColor: const Color(0xFFF8F9FA),
@@ -190,7 +183,6 @@ class _EditEventFormState extends State<EditEventForm> {
                 TextFormField(controller: _nameController, decoration: inputDecoration("Nama Event"), validator: (v) => v!.isEmpty ? "Wajib diisi" : null),
                 const SizedBox(height: 16),
 
-                // Komunitas (Read Only)
                 TextFormField(controller: _communityController, readOnly: true, decoration: inputDecoration("Komunitas"), style: const TextStyle(color: Colors.grey)),
                 const SizedBox(height: 16),
 
@@ -203,14 +195,12 @@ class _EditEventFormState extends State<EditEventForm> {
                 TextFormField(controller: _descController, maxLines: 3, decoration: inputDecoration("Deskripsi"), validator: (v) => v!.isEmpty ? "Wajib diisi" : null),
                 const SizedBox(height: 32),
 
-                // --- TOMBOL AKSI (ROW 3 TOMBOL) ---
                 if (_isLoading)
                   const Center(child: CircularProgressIndicator())
                 else
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Tombol Hapus (Merah)
                       ElevatedButton(
                         onPressed: _handleDelete,
                         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD32F2F), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
@@ -219,14 +209,12 @@ class _EditEventFormState extends State<EditEventForm> {
 
                       Row(
                         children: [
-                          // Tombol Batal (Abu)
                           TextButton(
                               onPressed: () => Navigator.pop(context),
                               style: TextButton.styleFrom(foregroundColor: Colors.grey.shade700, backgroundColor: Colors.grey.shade200, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                               child: const Text("Batal", style: TextStyle(fontWeight: FontWeight.bold))
                           ),
                           const SizedBox(width: 8),
-                          // Tombol Update (Kuning)
                           ElevatedButton(
                             onPressed: _handleUpdate,
                             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFC107), foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),

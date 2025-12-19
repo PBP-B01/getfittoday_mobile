@@ -1,4 +1,4 @@
-import 'dart:convert'; // Tambahan untuk jsonEncode
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
@@ -23,13 +23,11 @@ class CreateEventForm extends StatefulWidget {
 class _CreateEventFormState extends State<CreateEventForm> {
   final _formKey = GlobalKey<FormState>();
 
-  // Controllers
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
 
-  // State
   int? _selectedCommunityId;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -38,7 +36,6 @@ class _CreateEventFormState extends State<CreateEventForm> {
   bool _isFetching = true;
   String? _fetchError;
 
-  // Pastikan URL ini sama dengan Backend kamu
   final String baseUrl = "http://localhost:8000";
 
   @override
@@ -51,7 +48,6 @@ class _CreateEventFormState extends State<CreateEventForm> {
   Future<void> _fetchCommunities() async {
     final request = context.read<CookieRequest>();
     try {
-      // Kita pakai fungsi service yang sudah ada
       final data = await fetchAdminCommunities(request);
 
       if (mounted) {
@@ -63,10 +59,9 @@ class _CreateEventFormState extends State<CreateEventForm> {
             _selectedCommunityId = null;
           } else {
             _fetchError = null;
-            // Cek apakah ID awal masih valid di list yang baru diambil
             bool exists = data.any((c) => c['id'] == _selectedCommunityId);
             if (!exists) {
-              _selectedCommunityId = data.first['id']; // Default pilih yang pertama
+              _selectedCommunityId = data.first['id'];
             }
           }
           _isFetching = false;
@@ -100,7 +95,6 @@ class _CreateEventFormState extends State<CreateEventForm> {
       _selectedDate = date;
       _selectedTime = time;
       final dt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-      // Tampilan di Textfield (User Friendly)
       _dateController.text = DateFormat('dd MMM yyyy, HH:mm').format(dt);
     });
   }
@@ -111,7 +105,6 @@ class _CreateEventFormState extends State<CreateEventForm> {
     setState(() => _isLoading = true);
     final request = context.read<CookieRequest>();
 
-    // 1. Gabungkan Date dan Time
     final dateTime = DateTime(
         _selectedDate!.year,
         _selectedDate!.month,
@@ -120,12 +113,9 @@ class _CreateEventFormState extends State<CreateEventForm> {
         _selectedTime!.minute
     );
 
-    // 2. Format Tanggal untuk Django (PENTING: Sesuaikan dengan strptime di views.py)
-    // Format: "YYYY-MM-DD HH:MM:SS"
     final formattedDate = DateFormat("yyyy-MM-dd HH:mm:ss").format(dateTime);
 
     try {
-      // 3. Kirim Data Langsung (Biar aman format JSON-nya)
       final response = await request.postJson(
         "$baseUrl/event/api/create/",
         jsonEncode({
@@ -133,7 +123,7 @@ class _CreateEventFormState extends State<CreateEventForm> {
           "description": _descController.text,
           "location": _locationController.text,
           "date": formattedDate,
-          "community_id": _selectedCommunityId, // Sesuaikan key ini dengan backend
+          "community_id": _selectedCommunityId,
         }),
       );
 
@@ -159,7 +149,6 @@ class _CreateEventFormState extends State<CreateEventForm> {
 
   @override
   Widget build(BuildContext context) {
-    // Styling Input
     final inputBorder = OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.blue.withOpacity(0.2)));
     final inputDecoration = (String hint, {IconData? icon}) => InputDecoration(
         hintText: hint, prefixIcon: icon != null ? Icon(icon, size: 20, color: Colors.grey) : null, filled: true, fillColor: const Color(0xFFF8F9FA),
@@ -188,7 +177,6 @@ class _CreateEventFormState extends State<CreateEventForm> {
                 const SizedBox(height: 16),
 
                 _label("Komunitas"),
-                // Logic Dropdown: Loading -> Kosong -> Ada Isi
                 _isFetching
                     ? const Center(child: LinearProgressIndicator())
                     : _adminCommunities.isEmpty
@@ -226,7 +214,6 @@ class _CreateEventFormState extends State<CreateEventForm> {
                     TextButton(onPressed: () => Navigator.pop(context), child: Text("Batal", style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.grey))),
                     const SizedBox(width: 12),
                     ElevatedButton(
-                      // Matikan tombol jika user tidak punya akses komunitas
                       onPressed: (_isLoading || _adminCommunities.isEmpty) ? null : _submit,
                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFFC107), foregroundColor: Colors.black),
                       child: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Text("Simpan", style: GoogleFonts.inter(fontWeight: FontWeight.bold)),

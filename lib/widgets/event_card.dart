@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 class EventCard extends StatelessWidget {
   final Map<String, dynamic> event;
-  // Callback untuk aksi Join dan Leave yang akan ditangani oleh parent page
   final VoidCallback? onJoinTap;
   final VoidCallback? onLeaveTap;
   final VoidCallback? onEditTap;
@@ -19,7 +18,6 @@ class EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // --- FORMAT TANGGAL (Sama seperti sebelumnya) ---
     String formattedDate = event['date'] ?? '-';
     try {
       String rawDate = event['date'] ?? '';
@@ -29,13 +27,9 @@ class EventCard extends StatelessWidget {
     } catch (e) {
       print("Error parsing date: $e");
     }
-    // --------------------------------------------------
 
-    // AMBIL STATUS DARI BACKEND
     bool canEdit = event['can_edit'] ?? false;
-    // Pastikan backend mengirim field 'is_joined' (boolean)
     bool isJoined = event['is_joined'] ?? false;
-    // Logic status event (sementara)
     bool isFinished = event['is_active'] == false;
     String eventName = event['name'] ?? "Tanpa Nama";
 
@@ -55,7 +49,6 @@ class EventCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- HEADER (Judul & Status) ---
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -72,7 +65,7 @@ class EventCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isFinished ? Colors.grey.shade200 : const Color(0xFFE8F5E9), // Hijau muda kalau terbuka
+                  color: isFinished ? Colors.grey.shade200 : const Color(0xFFE8F5E9),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -87,7 +80,6 @@ class EventCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // --- DESKRIPSI ---
           Text(
             event['description'] ?? "-",
             maxLines: 2,
@@ -96,7 +88,6 @@ class EventCard extends StatelessWidget {
           ),
           const Divider(height: 24),
 
-          // --- DETAIL INFO ---
           _iconText(Icons.calendar_today_rounded, formattedDate, Colors.blue.shade700),
           const SizedBox(height: 8),
           _iconText(Icons.location_on_rounded, event['location'] ?? '-', Colors.red.shade700),
@@ -107,16 +98,14 @@ class EventCard extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          // --- AREA TOMBOL AKSI (BAGIAN YANG DIUBAH) ---
           Row(
             children: [
-              // 1. TOMBOL EDIT (Hanya muncul jika Admin)
               if (canEdit) ...[
                 Expanded(
                   child: ElevatedButton(
                     onPressed: onEditTap,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFC107), // Kuning
+                      backgroundColor: const Color(0xFFFFC107),
                       foregroundColor: Colors.black87,
                       elevation: 0,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -125,16 +114,12 @@ class EventCard extends StatelessWidget {
                     child: Text("Edit", style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15)),
                   ),
                 ),
-                const SizedBox(width: 12), // Jarak antar tombol
+                const SizedBox(width: 12),
               ],
 
-// 2. TOMBOL JOIN / LEAVE (Muncul untuk semua user)
               Expanded(
-                // Jika Admin, dia berbagi ruang. Jika User biasa, dia memenuhi Row.
                 flex: canEdit ? 1 : 2,
                 child: isJoined
-                // A. KONDISI SUDAH JOIN -> Tombol "Leave Event" (Oranye)
-                // (User tetap bisa leave meskipun event sudah lewat, logis kan?)
                     ? ElevatedButton(
                   onPressed: () {
                     _showLeaveConfirmationDialog(context, eventName);
@@ -149,12 +134,9 @@ class EventCard extends StatelessWidget {
                   child: Text("Leave Event", style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15)),
                 )
                     :
-                // B. KONDISI BELUM JOIN
-                // Cek dulu: Apakah event sudah selesai/lewat?
                 isFinished
-                // B1. Event Lewat -> Tombol Mati (Abu-abu)
                     ? ElevatedButton(
-                  onPressed: null, // DISABLED
+                  onPressed: null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey.shade300,
                     foregroundColor: Colors.white,
@@ -167,11 +149,10 @@ class EventCard extends StatelessWidget {
                       style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.grey.shade600)
                   ),
                 )
-                // B2. Event Masih Buka -> Tombol Join (Hijau)
                     : ElevatedButton(
                   onPressed: onJoinTap,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00C853), // Hijau segar
+                    backgroundColor: const Color(0xFF00C853),
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -187,7 +168,6 @@ class EventCard extends StatelessWidget {
     );
   }
 
-  // --- WIDGET HELPER UNTUK ICON & TEKS ---
   Widget _iconText(IconData icon, String text, Color color) {
     return Row(
       children: [
@@ -198,11 +178,10 @@ class EventCard extends StatelessWidget {
     );
   }
 
-  // --- FUNGSI MENAMPILKAN MODAL KONFIRMASI LEAVE ---
   Future<void> _showLeaveConfirmationDialog(BuildContext context, String eventName) async {
     return showDialog<void>(
       context: context,
-      barrierDismissible: false, // User harus memilih tombol
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -211,19 +190,16 @@ class EventCard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
-              mainAxisSize: MainAxisSize.min, // Tinggi menyesuaikan konten
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Icon Peringatan
                 const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 50),
                 const SizedBox(height: 16),
-                // Judul
                 Text(
                   "Konfirmasi Keluar",
                   style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w800, color: const Color(0xFF0D47A1)),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 12),
-                // Isi Pesan
                 RichText(
                   textAlign: TextAlign.center,
                   text: TextSpan(
@@ -239,15 +215,13 @@ class EventCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 28),
-                // Tombol Aksi
                 Row(
                   children: [
-                    // Tombol Batal (Abu-abu)
                     Expanded(
                       child: SizedBox(
                         height: 44,
                         child: OutlinedButton(
-                          onPressed: () => Navigator.of(context).pop(), // Tutup Dialog
+                          onPressed: () => Navigator.of(context).pop(),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.grey.shade700,
                             side: BorderSide(color: Colors.grey.shade400, width: 1.5),
@@ -258,19 +232,18 @@ class EventCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Tombol Keluar (Merah - Sesuai Request)
                     Expanded(
                       child: SizedBox(
                         height: 44,
                         child: ElevatedButton(
                           onPressed: () {
-                            Navigator.of(context).pop(); // 1. Tutup Dialog dulu
+                            Navigator.of(context).pop();
                             if (onLeaveTap != null) {
-                              onLeaveTap!(); // 2. Jalankan aksi Leave ke Backend
+                              onLeaveTap!();
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFD32F2F), // Merah
+                            backgroundColor: const Color(0xFFD32F2F),
                             foregroundColor: Colors.white,
                             elevation: 0,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

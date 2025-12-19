@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// Pastikan import community_form.dart ada di sini
 import '../screens/community_event_page.dart';
 import '../screens/community_form.dart';
 
@@ -21,8 +20,8 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
   Map<String, dynamic>? communityData;
   bool isLoading = true;
 
-  int _selectedTabIndex = 0; 
-  final List<String> _tabs = ["About", "Schedule", "Members"]; 
+  int _selectedTabIndex = 0;
+  final List<String> _tabs = ["About", "Schedule", "Members"];
 
   @override
   void initState() {
@@ -87,12 +86,12 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     final request = context.read<CookieRequest>();
     try {
       final response = await request.post(
-        '$djangoBaseUrl/community/api/promote/${widget.communityId}/', 
+        '$djangoBaseUrl/community/api/promote/${widget.communityId}/',
         {"username": username}
       );
       if (mounted) {
         if (response['status'] == 'success') {
-          fetchDetail(request); 
+          fetchDetail(request);
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Successfully promoted to Admin!"), backgroundColor: Colors.green));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message'])));
@@ -151,10 +150,10 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     final description = communityData?['description'] ?? "-";
     final contact = communityData?['contact_info'] ?? "-";
     final memberCount = communityData?['members_count'] ?? 0;
-    final fitnessSpotName = communityData?['fitness_spot'] != null 
-        ? communityData!['fitness_spot']['name'] 
+    final fitnessSpotName = communityData?['fitness_spot'] != null
+        ? communityData!['fitness_spot']['name']
         : "Online";
-    
+
     final String established = formatDate(communityData?['created_at']);
 
     final String? imagePath = communityData?['image'];
@@ -173,7 +172,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             width: double.infinity,
             child: (imagePath != null && imagePath.isNotEmpty)
                 ? Image.network(
-                    "$djangoBaseUrl$imagePath", 
+                    "$djangoBaseUrl$imagePath",
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Image.network(
                       "https://images.unsplash.com/photo-1571902943202-507ec2618e8f",
@@ -185,11 +184,10 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                     fit: BoxFit.cover,
                   ),
           ),
-          // Overlay Gelap
           Container(
             height: 250,
             width: double.infinity,
-            color: Colors.black.withOpacity(0.4), 
+            color: Colors.black.withOpacity(0.4),
           ),
 
           SingleChildScrollView(
@@ -370,7 +368,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                               MaterialPageRoute(
                                 builder: (context) => CommunityEventsPage(
                                   communityId: widget.communityId,
-                                  communityName: name, // <--- TAMBAHKAN INI (Variable 'name' sudah ada di build method kamu)
+                                  communityName: name,
                                   isAdmin: isAdmin,
                                 ),
                               ),
@@ -467,8 +465,8 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             ),
           ],
         );
-      
-      case 1: // Schedule
+
+      case 1:
         if (rawSchedule.isEmpty) {
           return Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text("No training schedule available.", style: GoogleFonts.inter(color: Colors.grey))));
         }
@@ -499,7 +497,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
           ],
         );
 
-      case 2: // Members
+      case 2:
         if (members.isEmpty) {
            return Center(child: Padding(padding: const EdgeInsets.all(20.0), child: Text("No members yet.", style: GoogleFonts.inter(color: Colors.grey))));
         }
@@ -510,22 +508,21 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
             const SizedBox(height: 20),
             ...members.map((m) {
               return _buildMemberItem(
-                m['username'], 
+                m['username'],
                 m['is_admin'] ? "Admin" : "Member",
-                true, 
+                true,
                 isAdmin
               );
             }).toList(),
             const SizedBox(height: 40),
           ],
         );
-        
+
       default:
         return const SizedBox();
     }
   }
 
-  // --- WIDGET HELPER ---
   Widget _buildInfoRow(String label1, String val1, String label2, String val2) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

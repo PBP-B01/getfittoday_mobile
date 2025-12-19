@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:io'; 
-import 'dart:typed_data'; 
-import 'package:flutter/foundation.dart' show kIsWeb; 
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
@@ -21,50 +21,47 @@ class CommunityFormPage extends StatefulWidget {
 class _CommunityFormPageState extends State<CommunityFormPage> {
   final _formKey = GlobalKey<FormState>();
 
-  // Field Data
   String _name = "";
   String _shortDescription = "";
   String _description = "";
   String _contactInfo = "";
-  String _schedule = ""; 
-  
-  // Data Terpilih
+  String _schedule = "";
+
   String? _selectedFitnessSpotId;
   String? _selectedCategory;
 
-  // Controller
   final TextEditingController _categoryController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
 
   final List<String> _sportCategories = [
-    'Aerobics', 'Aikido', 'American Football', 'Archery', 'Arm Wrestling', 
-    'Athletics', 'Badminton', 'Ballet', 'Baseball', 'Basketball', 
-    'Beach Volleyball', 'Billiards', 'BMX', 'Bodybuilding', 'Bowling', 
-    'Boxing', 'Brazilian Jiu-Jitsu', 'Breakdancing', 'Calisthenics', 
-    'Canoeing', 'Capoeira', 'Cardio', 'Cheerleading', 'Chess', 'Climbing', 
-    'Cricket', 'CrossFit', 'Cycling', 'Dance', 'Darts', 'Dodgeball', 
-    'Dragon Boat', 'E-Sports', 'Equestrian', 'Fencing', 'Figure Skating', 
-    'Fishing', 'Floorball', 'Football', 'Frisbee', 'Futsal', 'Golf', 
-    'Gym', 'Gymnastics', 'Handball', 'HIIT', 'Hiking', 'Hockey', 
-    'Horse Riding', 'Ice Skating', 'Jogging', 'Judo', 'Ju-Jitsu', 'Karate', 
-    'Kayaking', 'Kendo', 'Kickboxing', 'Krav Maga', 'Kung Fu', 'Lacrosse', 
-    'Marathon', 'Martial Arts', 'Meditation', 'MMA', 'Motocross', 
-    'Mountain Biking', 'Muay Thai', 'Netball', 'Obstacle Racing', 'Paddle', 
-    'Padel', 'Parkour', 'Pickleball', 'Pilates', 'Ping Pong', 'Pole Dance', 
-    'Polo', 'Powerlifting', 'Rafting', 'Rock Climbing', 'Roller Skating', 
-    'Rowing', 'Rugby', 'Running', 'Sailing', 'Scuba Diving', 'Sepak Takraw', 
-    'Shooting', 'Skateboarding', 'Skating', 'Skiing', 'Slacklining', 
-    'Snorkeling', 'Snowboarding', 'Soccer', 'Softball', 'Spinning', 'Squash', 
-    'Street Workout', 'Surfing', 'Swimming', 'Table Tennis', 'Taekwondo', 
-    'Tai Chi', 'Tennis', 'Track & Field', 'Trail Running', 'Trampoline', 
-    'Triathlon', 'TRX', 'Ultimate Frisbee', 'Volleyball', 'Walking', 
-    'Water Polo', 'Weightlifting', 'Windsurfing', 'Wrestling', 'Wushu', 
+    'Aerobics', 'Aikido', 'American Football', 'Archery', 'Arm Wrestling',
+    'Athletics', 'Badminton', 'Ballet', 'Baseball', 'Basketball',
+    'Beach Volleyball', 'Billiards', 'BMX', 'Bodybuilding', 'Bowling',
+    'Boxing', 'Brazilian Jiu-Jitsu', 'Breakdancing', 'Calisthenics',
+    'Canoeing', 'Capoeira', 'Cardio', 'Cheerleading', 'Chess', 'Climbing',
+    'Cricket', 'CrossFit', 'Cycling', 'Dance', 'Darts', 'Dodgeball',
+    'Dragon Boat', 'E-Sports', 'Equestrian', 'Fencing', 'Figure Skating',
+    'Fishing', 'Floorball', 'Football', 'Frisbee', 'Futsal', 'Golf',
+    'Gym', 'Gymnastics', 'Handball', 'HIIT', 'Hiking', 'Hockey',
+    'Horse Riding', 'Ice Skating', 'Jogging', 'Judo', 'Ju-Jitsu', 'Karate',
+    'Kayaking', 'Kendo', 'Kickboxing', 'Krav Maga', 'Kung Fu', 'Lacrosse',
+    'Marathon', 'Martial Arts', 'Meditation', 'MMA', 'Motocross',
+    'Mountain Biking', 'Muay Thai', 'Netball', 'Obstacle Racing', 'Paddle',
+    'Padel', 'Parkour', 'Pickleball', 'Pilates', 'Ping Pong', 'Pole Dance',
+    'Polo', 'Powerlifting', 'Rafting', 'Rock Climbing', 'Roller Skating',
+    'Rowing', 'Rugby', 'Running', 'Sailing', 'Scuba Diving', 'Sepak Takraw',
+    'Shooting', 'Skateboarding', 'Skating', 'Skiing', 'Slacklining',
+    'Snorkeling', 'Snowboarding', 'Soccer', 'Softball', 'Spinning', 'Squash',
+    'Street Workout', 'Surfing', 'Swimming', 'Table Tennis', 'Taekwondo',
+    'Tai Chi', 'Tennis', 'Track & Field', 'Trail Running', 'Trampoline',
+    'Triathlon', 'TRX', 'Ultimate Frisbee', 'Volleyball', 'Walking',
+    'Water Polo', 'Weightlifting', 'Windsurfing', 'Wrestling', 'Wushu',
     'Yoga', 'Zumba'
   ];
 
-  File? _imageFile;          
-  Uint8List? _imageBytes;    
-  String? _imageName;        
+  File? _imageFile;
+  Uint8List? _imageBytes;
+  String? _imageName;
 
   final ImagePicker _picker = ImagePicker();
   List<Map<String, dynamic>> _fitnessSpots = [];
@@ -73,8 +70,7 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
   @override
   void initState() {
     super.initState();
-    
-    // 1. AUTO-FILL
+
     if (widget.existingData != null) {
       final data = widget.existingData!;
       _name = data['name'] ?? "";
@@ -82,14 +78,13 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
       _description = data['description'] ?? "";
       _contactInfo = data['contact_info'] ?? "";
       _schedule = data['schedule'] ?? "";
-      
+
       if (data['category'] != null) {
         _selectedCategory = data['category'];
         _categoryController.text = _selectedCategory!;
       }
     }
 
-    // 2. FETCH SPOTS
     WidgetsBinding.instance.addPostFrameCallback((_) {
       fetchFitnessSpots();
     });
@@ -110,17 +105,16 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
         _fitnessSpots = List<Map<String, dynamic>>.from(response);
         _isLoadingSpots = false;
 
-        // Auto-fill Lokasi
         if (widget.existingData != null) {
           final spotData = widget.existingData!['fitness_spot'];
           if (spotData != null && spotData['place_id'] != null) {
              final foundSpot = _fitnessSpots.firstWhere(
-               (s) => s['id'] == spotData['place_id'], 
+               (s) => s['id'] == spotData['place_id'],
                orElse: () => {}
              );
              if (foundSpot.isNotEmpty) {
                _selectedFitnessSpotId = spotData['place_id'];
-               _locationController.text = foundSpot['name']; 
+               _locationController.text = foundSpot['name'];
              }
           }
         }
@@ -160,14 +154,13 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.transparent, 
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(isEditing ? "Edit Community" : "Create Community", style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white)),
         backgroundColor: primaryNavColor,
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
       ),
-      // BODY GRADIENT
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -192,7 +185,6 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // UPLOAD GAMBAR
                         GestureDetector(
                           onTap: _pickImage,
                           child: Container(
@@ -211,7 +203,6 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
                         ),
                         const SizedBox(height: 24),
 
-                        // NAMA
                         TextFormField(
                           initialValue: _name,
                           decoration: _inputDecoration("Community Name", Icons.group),
@@ -220,7 +211,6 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // TAGLINE
                         TextFormField(
                           initialValue: _shortDescription,
                           decoration: _inputDecoration("Short Description (Tagline)", Icons.short_text, helperText: "Example: Casual Sunday Runners"),
@@ -229,7 +219,6 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // SEARCHABLE DROPDOWN KATEGORI 
                         _buildSearchableField<String>(
                           controller: _categoryController,
                           label: "Sport Category",
@@ -243,10 +232,9 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
                           },
                           displayStringForOption: (option) => option,
                         ),
-                        
+
                         const SizedBox(height: 16),
 
-                        // DESKRIPSI
                         TextFormField(
                           initialValue: _description,
                           decoration: _inputDecoration("Full Description", Icons.description),
@@ -256,7 +244,6 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // KONTAK
                         TextFormField(
                           initialValue: _contactInfo,
                           decoration: _inputDecoration("Contact (WA/IG)", Icons.contact_phone),
@@ -265,12 +252,11 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // JADWAL 
                         TextFormField(
                           initialValue: _schedule,
                           decoration: _inputDecoration(
-                            "Training Schedule", 
-                            Icons.calendar_today, 
+                            "Training Schedule",
+                            Icons.calendar_today,
                             helperText: "Format: Day HH:MM - Activity\nExample: Monday 08:00-09:00 - Cardio (Use Enter for new line)",
                           ),
                           maxLines: 3,
@@ -279,7 +265,6 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
                         ),
                         const SizedBox(height: 16),
 
-                        // SEARCHABLE DROPDOWN LOKASI 
                         _buildSearchableField<Map<String, dynamic>>(
                           controller: _locationController,
                           label: "Training Location",
@@ -296,7 +281,6 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
 
                         const SizedBox(height: 32),
 
-                        // TOMBOL SUBMIT
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
@@ -307,7 +291,6 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
                             ),
                             onPressed: () async {
                               if (_formKey.currentState!.validate()) {
-                                // Validasi Manual Dropdown
                                 if (_selectedCategory == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Category not selected!")));
                                   return;
@@ -340,19 +323,19 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
                                     {
                                       "name": _name,
                                       "short_description": _shortDescription,
-                                      "category": _selectedCategory!, 
+                                      "category": _selectedCategory!,
                                       "description": _description,
                                       "contact_info": _contactInfo,
                                       "fitness_spot_id": _selectedFitnessSpotId!,
                                       "schedule": _schedule,
-                                      "image": imageBase64 ?? "", 
+                                      "image": imageBase64 ?? "",
                                     }
                                   );
 
                                   if (response['status'] == 'success') {
                                     if (context.mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isEditing ? "Update successful!" : "Creation successful!"), backgroundColor: Colors.green));
-                                      Navigator.pop(context); 
+                                      Navigator.pop(context);
                                     }
                                   } else {
                                     if (context.mounted) {
@@ -377,7 +360,6 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
     );
   }
 
-  // Widget Searchable Autocomplete
   Widget _buildSearchableField<T extends Object>({
     required TextEditingController controller,
     required String label,
@@ -390,10 +372,10 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
       builder: (context, constraints) {
         return Autocomplete<T>(
           displayStringForOption: displayStringForOption,
-          
+
           optionsBuilder: (TextEditingValue textEditingValue) {
             if (textEditingValue.text == '') {
-              return options; 
+              return options;
             }
             return options.where((T option) {
               return displayStringForOption(option)
@@ -402,7 +384,7 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
             });
           },
           onSelected: onSelected,
-          
+
           optionsViewBuilder: (context, onSelected, options) {
             return Align(
               alignment: Alignment.topLeft,
@@ -413,8 +395,8 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
                   borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
                 ),
                 child: Container(
-                  width: constraints.biggest.width, 
-                  constraints: const BoxConstraints(maxHeight: 250), 
+                  width: constraints.biggest.width,
+                  constraints: const BoxConstraints(maxHeight: 250),
                   child: ListView.separated(
                     padding: EdgeInsets.zero,
                     itemCount: options.length,
@@ -441,7 +423,7 @@ class _CommunityFormPageState extends State<CommunityFormPage> {
               controller: textEditingController,
               focusNode: focusNode,
               decoration: _inputDecoration(label, icon, helperText: "Type to search or select from list").copyWith(
-                suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.grey), 
+                suffixIcon: const Icon(Icons.arrow_drop_down, color: Colors.grey),
               ),
               validator: (val) {
                 if (val == null || val.isEmpty) return "Required";

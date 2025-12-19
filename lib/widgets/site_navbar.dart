@@ -37,9 +37,9 @@ class SiteNavBar extends StatelessWidget {
     return 'User';
   }
 
-  void _go(BuildContext context, String routeName) {
+  void _go(BuildContext context, String routeName, {Object? arguments}) {
     if (ModalRoute.of(context)?.settings.name == routeName) return;
-    Navigator.pushReplacementNamed(context, routeName);
+    Navigator.pushReplacementNamed(context, routeName, arguments: arguments);
   }
 
   void _soon(BuildContext context, String label) {
@@ -86,6 +86,13 @@ class SiteNavBar extends StatelessWidget {
     closeMenu?.call();
     final route = _routeForDestination(destination);
     if (route != null) {
+      final request = context.read<CookieRequest>();
+      final auth = context.read<AuthState>();
+      final isLoggedIn = auth.isLoggedIn || request.loggedIn;
+      if (!isLoggedIn && destination == NavDestination.booking) {
+        _go(context, '/login', arguments: {'next': route});
+        return;
+      }
       _go(context, route);
     } else {
       _soon(context, label);
@@ -146,7 +153,7 @@ class SiteNavBar extends StatelessWidget {
               backgroundColor: accentDarkColor,
             ),
           );
-        Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
         break;
     }
   }
@@ -303,6 +310,7 @@ class SiteNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
     final auth = context.watch<AuthState>();
+    final isLoggedIn = auth.isLoggedIn || request.loggedIn;
     final isAdmin = auth.isAdmin;
     final username = auth.username ?? _usernameFromRequest(request);
     return _SessionBootstrapper(
@@ -374,82 +382,112 @@ class SiteNavBar extends StatelessWidget {
                     ],
                   ),
                 const SizedBox(width: 16),
-                PopupMenuButton<_ProfileMenuAction>(
-                  tooltip: 'Profile',
-                  offset: const Offset(0, 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  onSelected: (action) =>
-                      _handleProfileAction(context, request, action),
-                  itemBuilder: (context) => [
-                    PopupMenuItem<_ProfileMenuAction>(
-                      enabled: false,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Signed in as',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: inkWeakColor,
+                if (!isLoggedIn)
+                  OutlinedButton(
+                    onPressed: () {
+                      final currentRoute =
+                          ModalRoute.of(context)?.settings.name;
+                      _go(
+                        context,
+                        '/login',
+                        arguments: {
+                          'next': currentRoute ?? '/home',
+                        },
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white, width: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Login',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  )
+                else
+                  PopupMenuButton<_ProfileMenuAction>(
+                    tooltip: 'Profile',
+                    offset: const Offset(0, 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    onSelected: (action) =>
+                        _handleProfileAction(context, request, action),
+                    itemBuilder: (context) => [
+                      PopupMenuItem<_ProfileMenuAction>(
+                        enabled: false,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Signed in as',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: inkWeakColor,
+                              ),
                             ),
+                            const SizedBox(height: 4),
+                            Text(
+                              username,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color: primaryNavColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      PopupMenuItem<_ProfileMenuAction>(
+                        value: _ProfileMenuAction.bookings,
+                        child: Text(
+                          isAdmin ? 'All users bookings' : 'My Bookings',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: primaryNavColor,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            username,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14,
-                              color: primaryNavColor,
-                            ),
+                        ),
+                      ),
+                      const PopupMenuItem<_ProfileMenuAction>(
+                        value: _ProfileMenuAction.logout,
+                        child: Text(
+                          'Logout',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                      ),
+                    ],
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        color: accentColor,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color.fromARGB(60, 0, 0, 0),
+                            blurRadius: 10,
+                            offset: Offset(0, 5),
                           ),
                         ],
                       ),
-                    ),
-                    const PopupMenuDivider(),
-                    PopupMenuItem<_ProfileMenuAction>(
-                      value: _ProfileMenuAction.bookings,
-                      child: Text(
-                        isAdmin ? 'All users bookings' : 'My Bookings',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: primaryNavColor,
-                        ),
+                      child: const Icon(
+                        Icons.person,
+                        color: inputTextColor,
+                        size: 22,
                       ),
-                    ),
-                    const PopupMenuItem<_ProfileMenuAction>(
-                      value: _ProfileMenuAction.logout,
-                      child: Text(
-                        'Logout',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Colors.redAccent,
-                        ),
-                      ),
-                    ),
-                  ],
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      color: accentColor,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color.fromARGB(60, 0, 0, 0),
-                          blurRadius: 10,
-                          offset: Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.person,
-                      color: inputTextColor,
-                      size: 22,
                     ),
                   ),
-                ),
               ],
             );
           },
@@ -487,7 +525,6 @@ class _SessionBootstrapperState extends State<_SessionBootstrapper> {
     final request = context.read<CookieRequest>();
     final auth = context.read<AuthState>();
 
-    // If we already have a username + role, skip.
     if (auth.isLoggedIn && (request.jsonData['username']?.toString().isNotEmpty ?? false)) {
       return;
     }
@@ -516,7 +553,6 @@ class _SessionBootstrapperState extends State<_SessionBootstrapper> {
         auth.clear();
       }
     } catch (_) {
-      // ignore errors (offline, backend down, etc)
     }
   }
 

@@ -1,4 +1,3 @@
-// File: lib/community/models/event.dart
 import 'dart:convert';
 
 List<Event> eventFromJson(String str) => List<Event>.from(json.decode(str).map((x) => Event.fromJson(x)));
@@ -9,14 +8,14 @@ class Event {
   int id;
   String name;
   String description;
-  DateTime date;       // Untuk sorting/logic
-  String dateDisplay;  // Untuk tampilan UI (Dari Django: "12 December 2025, 10:00")
+  DateTime date;
+  String dateDisplay;
   String location;
   int participantCount;
   bool isPast;
   bool registrationOpen;
-  bool canJoin;        // Penting untuk tombol Join
-  bool isParticipant;  // Penting untuk tombol Leave
+  bool canJoin;
+  bool isParticipant;
   bool canEdit;
 
   Event({
@@ -35,8 +34,6 @@ class Event {
   });
 
   factory Event.fromJson(Map<String, dynamic> json) {
-    // Parsing tanggal dari format Django "YYYY-MM-DD HH:MM"
-    // Kita ganti spasi jadi 'T' biar bisa dibaca DateTime.parse Dart
     String rawDate = json["date"];
     if (!rawDate.contains('T')) {
       rawDate = rawDate.replaceFirst(' ', 'T');

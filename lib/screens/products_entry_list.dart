@@ -1,4 +1,3 @@
-// products_entry_list.dart
 
 import 'package:flutter/material.dart';
 
@@ -11,11 +10,8 @@ import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:getfittoday_mobile/state/auth_state.dart';
 
-// =====PERUBAHAN BARU=====
-// Import constants & SiteNavBar supaya background dan navbar Store sama dengan Home
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
-// =====PERUBAHAN BARU=====
 
 
 class ProductEntryListPage extends StatefulWidget {
@@ -35,7 +31,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
   int _totalPages = 1;
   bool _hasNext = false;
   bool _hasPrevious = false;
-  int _cartCount = 0; 
+  int _cartCount = 0;
 
   final Map<String, String> _sortOptions = {
     "terbaru": "Terbaru",
@@ -82,7 +78,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
 
   void refreshList() {
     setState(() {});
-    _updateCartCount(); 
+    _updateCartCount();
   }
 
   Future<void> _updateCartCount() async {
@@ -147,10 +143,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
     final request = context.watch<CookieRequest>();
     final isAdmin = context.watch<AuthState>().isAdmin;
 
-    // =====PERUBAHAN BARU=====
-    // Gunakan Scaffold tanpa AppBar tapi dengan Container gradient agar sama seperti Home
     return Scaffold(
-      // jangan atur backgroundColor di sini; gunakan Container dengan gradient seperti home.dart
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -162,9 +155,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
         child: SafeArea(
           child: Column(
             children: [
-              // Tambahkan SiteNavBar dengan active: store
-              const SiteNavBar(active: NavDestination.store), // =====PERUBAHAN BARU=====
-              // Konten utama di bawah navbar
+              const SiteNavBar(active: NavDestination.store),
               Expanded(
                 child: _buildStoreContent(context, request, isAdmin),
               ),
@@ -173,10 +164,8 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
         ),
       ),
     );
-    // =====PERUBAHAN BARU=====
   }
 
-  // Dipisahkan ke method agar build lebih bersih
   Widget _buildStoreContent(BuildContext context, CookieRequest request, bool isAdmin) {
     return Column(
       children: [
@@ -188,7 +177,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
               InkWell(
                 onTap: () {
                   Navigator.pushReplacement(
-                    context, 
+                    context,
                     MaterialPageRoute(builder: (context) => const MyHomePage())
                   );
                 },
@@ -201,7 +190,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 10),
 
               Stack(
@@ -212,24 +201,23 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
                     child: Text(
                       "STORE",
                       style: TextStyle(
-                        fontSize: 28, 
-                        fontWeight: FontWeight.w900, 
-                        color: Color(0xFF1B2B5A), 
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF1B2B5A),
                         letterSpacing: 1.0
                       ),
                     ),
                   ),
 
-                  // === HANYA TAMPIL JIKA BUKAN ADMIN ===
-                  if (!isAdmin) 
+                  if (!isAdmin)
                     Align(
                       alignment: Alignment.centerRight,
                       child: InkWell(
                         onTap: () {
                            Navigator.push(
-                             context, 
+                             context,
                              MaterialPageRoute(builder: (context) => const CartPage())
-                           ).then((_) => _updateCartCount()); 
+                           ).then((_) => _updateCartCount());
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -249,7 +237,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Text(
-                                "Keranjang", 
+                                "Keranjang",
                                 style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w600, fontSize: 12)
                               ),
                               const SizedBox(width: 8),
@@ -260,7 +248,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
-                                  "$_cartCount", 
+                                  "$_cartCount",
                                   style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                                 ),
                               )
@@ -275,7 +263,6 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
           ),
         ),
 
-        // SEARCH & FILTER
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Row(
@@ -302,7 +289,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
                       hintText: "Cari produk...",
                       hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14), 
+                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                     ),
                     onChanged: (val) => _uiSearchQuery = val,
                     onSubmitted: (val) {
@@ -424,7 +411,7 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        childAspectRatio: 0.50, 
+                        childAspectRatio: 0.50,
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
                       ),

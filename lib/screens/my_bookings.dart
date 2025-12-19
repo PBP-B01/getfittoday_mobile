@@ -52,7 +52,7 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
         final bDate = b.startDateTime;
         int cmp;
         if (aDate != null && bDate != null) {
-          cmp = bDate.compareTo(aDate); // newest first
+          cmp = bDate.compareTo(aDate);
         } else if (aDate != null) {
           cmp = -1;
         } else if (bDate != null) {
@@ -222,7 +222,6 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
         }
       }
     } catch (_) {
-      // ignore errors; fallback to unauthenticated
     }
   }
 
@@ -1090,7 +1089,6 @@ class _BookingCard extends StatelessWidget {
                                 selectedDate.month == today.month &&
                                 selectedDate.day == today.day;
 
-                            // Slot yang sudah dipakai (selain booking ini) pada tanggal yang sama.
                             final blocked = allReservations.where((r) {
                               if (r.id == reservation.id) return false;
                               if (r.isClosed) return false;
