@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/models/blogsnevents_model.dart';
 import 'package:getfittoday_mobile/services/blogs_events_service.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:getfittoday_mobile/utils/constants.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
-
+import 'blogsnevents_detail.dart';
+import 'blog_form_page.dart';
+import 'event_form_page.dart';
 
 class BlogsEventsPage extends StatefulWidget {
   const BlogsEventsPage({super.key});
@@ -16,72 +17,430 @@ class BlogsEventsPage extends StatefulWidget {
 }
 
 class _BlogsEventsPageState extends State<BlogsEventsPage> {
-  final _blogEventService = BlogEventService();
-  List<Event> _events = [];
-  List<Blog> _blogs = [];
-  bool _isLoading = true;
-  String _selectedTab = 'events'; // 'events' or 'blogs'
+  final BlogEventService _service = BlogEventService();
+  final TextEditingController _searchController = TextEditingController();
+
+
+  bool showBlogs = true;
+  bool showOnlyMine = false;
+  String searchQuery = '';
+
+
+
+  List<Blog> blogs = [];
+  List<Event> events = [];
+  String? currentUsername;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _fetchData();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+  Future<void> _fetchData() async {
     final request = context.read<CookieRequest>();
 
-    final events = await _blogEventService.fetchEvents(request);
-    final blogs = await _blogEventService.fetchBlogs(request);
+    await _fetchCurrentUser(request);
 
-    setState(() {
-      _events = events;
-      _blogs = blogs;
-      _isLoading = false;
-    });
+    blogs = await _service.fetchBlogs(request);
+    events = await _service.fetchEvents(request);
+
+    setState(() {});
+  }
+
+  Future<void> _fetchCurrentUser(CookieRequest request) async {
+    try {
+      final res = await request.get(
+        '$djangoBaseUrl/blognevent/api/me/',
+      );
+      setState(() {
+        currentUsername = res['username'];
+      });
+    } catch (_) {
+      setState(() {
+        currentUsername = null;
+      });
+    }
+  }
+
+  Future<void> _confirmDeleteEvent(String eventId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Event'),
+        content: const Text('Are you sure you want to delete this event?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final request = context.read<CookieRequest>();
+
+    final response = await request.post(
+      '$djangoBaseUrl/blognevent/api/events/$eventId/delete/',
+      {},
+    );
+
+    if (response['success'] == true) {
+      setState(() {
+        events.removeWhere((e) => e.id == eventId);
+      });
+    }
+  }
+
+  Future<void> _confirmDeleteBlog(String blogId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete blog'),
+        content: const Text('Are you sure you want to delete this blog?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _deleteBlog(blogId);
+      _fetchData();
+    }
+  }
+
+  Future<void> _deleteBlog(String blogId) async {
+    final request = context.read<CookieRequest>();
+
+    await request.post(
+      '$djangoBaseUrl/blognevent/api/blogs/$blogId/delete/',
+      {},
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isWide = size.width > 768;
+    print('LOGGED IN USER = $currentUsername');
+    final request = context.watch<CookieRequest>();
+    final bool isLoggedIn = request.loggedIn;
+
+    // 🔒 Safety: force-disable filter if logged out
+    if (!isLoggedIn && showOnlyMine) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() => showOnlyMine = false);
+      });
+    }
+
+    final filteredBlogs = blogs.where((b) {
+      final matchesSearch =
+          searchQuery.isEmpty ||
+              b.title.toLowerCase().contains(searchQuery);
+
+      final matchesOwner =
+          !showOnlyMine ||
+              (currentUsername != null && b.author == currentUsername);
+
+      return matchesSearch && matchesOwner;
+    }).toList();
+
+    final filteredEvents = events.where((e) {
+      final matchesSearch =
+          searchQuery.isEmpty ||
+              e.name.toLowerCase().contains(searchQuery);
+
+      final matchesOwner =
+          !showOnlyMine ||
+              (currentUsername != null && e.user == currentUsername);
+
+      return matchesSearch && matchesOwner;
+    }).toList();
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [gradientStartColor, gradientEndColor],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              const SiteNavBar(active: NavDestination.blogs),
-              const SizedBox(height: 20),
+      body: Column(
+        children: [
+          const SiteNavBar(),
 
-              // Tab Selector
-              _buildTabSelector(),
-
-              const SizedBox(height: 20),
-
-              // Content
-              Expanded(
-                child: _isLoading
-                    ? const Center(
-                  child: CircularProgressIndicator(
-                    color: Colors.white,
-                  ),
-                )
-                    : RefreshIndicator(
-                  onRefresh: _loadData,
-                  child: _selectedTab == 'events'
-                      ? _buildEventsList(isWide)
-                      : _buildBlogsList(isWide),
+          /// 🏷 PAGE TITLE
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Text(
+                'BLOGS & EVENTS',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1,
                 ),
               ),
+            ),
+          ),
+
+          /// 🔍 SEARCH BAR
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value.toLowerCase();
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Search blogs or events...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: PopupMenuButton<String>(
+                  icon: const Icon(Icons.add),
+                  onSelected: (value) {
+                    if (value == 'blog') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const BlogFormPage(),
+                        ),
+                      );
+
+                    } else if (value == 'event') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const EventFormPage(),
+                        ),
+                      );
+
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'blog',
+                      child: Text('Create Blog'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'event',
+                      child: Text('Create Event'),
+                    ),
+                  ],
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+
+          /// 🔘 SLIDING TOGGLE
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _slidingToggle(),
+          ),
+
+          /// ☑ VIEW MY OWN (DISABLED WHEN LOGGED OUT)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SwitchListTile(
+              value: isLoggedIn ? showOnlyMine : false,
+              onChanged: isLoggedIn
+                  ? (value) {
+                setState(() {
+                  showOnlyMine = value;
+                });
+              }
+                  : null, // 👈 disables switch
+              title: Text(
+                'View my own',
+                style: TextStyle(
+                  color: isLoggedIn ? Colors.black : Colors.grey,
+                ),
+              ),
+              subtitle: !isLoggedIn
+                  ? const Text(
+                'Log in to enable this filter',
+                style: TextStyle(fontSize: 12),
+              )
+                  : null,
+              dense: true,
+            ),
+          ),
+
+          /// 📃 LIST
+          Expanded(
+            child: ListView.builder(
+              itemCount:
+              showBlogs ? filteredBlogs.length : filteredEvents.length,
+              itemBuilder: (context, index) {
+                return showBlogs
+                    ? _buildBlogCard(filteredBlogs[index])
+                    : _buildEventCard(filteredEvents[index]);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 🔘 Animated sliding toggle
+  Widget _slidingToggle() {
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Stack(
+        children: [
+          AnimatedAlign(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            alignment:
+            showBlogs ? Alignment.centerLeft : Alignment.centerRight,
+            child: Container(
+              width: MediaQuery.of(context).size.width / 2 - 32,
+              margin: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.teal,
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => showBlogs = true),
+                  child: Center(
+                    child: Text(
+                      'Blogs',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: showBlogs ? Colors.white : Colors.black54,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => showBlogs = false),
+                  child: Center(
+                    child: Text(
+                      'Events',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: !showBlogs ? Colors.white : Colors.black54,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBlogCard(Blog blog) {
+    String briefDescription() {
+      final words = blog.body.split(RegExp(r'\s+'));
+      if (words.length <= 15) return blog.body;
+      return words.take(15).join(' ') + '...';
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BlogsEventsDetailPage(
+                blogId: blog.id,
+                isBlog: true,
+              ),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+
+              /// TITLE
+              Text(
+                blog.title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              /// DESCRIPTION (15 WORDS)
+              Text(
+                briefDescription(),
+                style: const TextStyle(fontSize: 14),
+              ),
+
+              const SizedBox(height: 12),
+
+              /// OWNER BUTTONS
+              if (currentUsername != null && blog.author == currentUsername)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      tooltip: 'Edit blog',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BlogFormPage(blogId: blog.id),
+                          ),
+                        ).then((_) => _fetchData());
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      tooltip: 'Delete blog',
+                      onPressed: () => _confirmDeleteBlog(blog.id),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
@@ -89,373 +448,159 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
     );
   }
 
-  Widget _buildTabSelector() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _selectedTab = 'events'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _selectedTab == 'events'
-                        ? Colors.white
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Events',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: _selectedTab == 'events'
-                            ? primaryNavColor
-                            : Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _selectedTab = 'blogs'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: _selectedTab == 'blogs'
-                        ? Colors.white
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Blogs',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: _selectedTab == 'blogs'
-                            ? primaryNavColor
-                            : Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEventsList(bool isWide) {
-    if (_events.isEmpty) {
-      return Center(
-        child: Text(
-          'No events found',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            color: Colors.white,
-          ),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: EdgeInsets.symmetric(
-        horizontal: isWide ? 40 : 20,
-        vertical: 10,
-      ),
-      itemCount: _events.length,
-      itemBuilder: (context, index) {
-        final event = _events[index];
-        return _buildEventCard(event);
-      },
-    );
-  }
-
   Widget _buildEventCard(Event event) {
-    // Format dates without intl package
-    String formatDate(DateTime date) {
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return '${months[date.month - 1]} ${date.day.toString().padLeft(2, '0')}, ${date.year}';
+    String briefDescription() {
+      final words = event.description.split(RegExp(r'\s+'));
+      if (words.length <= 15) return event.description;
+      return words.take(15).join(' ') + '...';
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image
-          if (event.image != null && event.image!.isNotEmpty)
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(
-                event.image!,
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 200,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.event, size: 64, color: Colors.grey),
-                  );
-                },
+    String formatDate(DateTime date) {
+      String two(int n) => n.toString().padLeft(2, '0');
+      return '${two(date.day)}/${two(date.month)}/${date.year.toString().substring(2)} '
+          '${two(date.hour)}:${two(date.minute)}';
+    }
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BlogsEventsDetailPage(
+                eventId: event.id,
+                isBlog: false,
               ),
             ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
 
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title
-                Text(
-                  event.name,
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: primaryNavColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Dates
-                Row(
-                  children: [
-                    const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${formatDate(event.startingDate)} - ${formatDate(event.endingDate)}',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: Colors.grey[700],
+              /// TITLE + DATES
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      event.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Creator
-                Row(
-                  children: [
-                    const Icon(Icons.person, size: 16, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Created by ${event.user}',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Description
-                Text(
-                  event.description,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: Colors.grey[800],
-                    height: 1.5,
                   ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-
-                // Locations
-                if (event.locations.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: event.locations.take(3).map((location) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: primaryNavColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.location_on,
-                              size: 14,
-                              color: primaryNavColor,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              location,
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: primaryNavColor,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  if (event.locations.length > 3)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        '+${event.locations.length - 3} more locations',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                          fontStyle: FontStyle.italic,
-                        ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Starting Date : ${formatDate(event.startingDate.toLocal())}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
-                    ),
+                      Text(
+                        'Ending Date   : ${formatDate(event.endingDate.toLocal())}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
                 ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+              ),
 
-  Widget _buildBlogsList(bool isWide) {
-    if (_blogs.isEmpty) {
-      return Center(
-        child: Text(
-          'No blogs found',
-          style: GoogleFonts.inter(
-            fontSize: 16,
-            color: Colors.white,
+              const SizedBox(height: 8),
+
+              /// DESCRIPTION (15 WORDS)
+              Text(
+                briefDescription(),
+                style: const TextStyle(fontSize: 14),
+              ),
+
+              /// LOCATIONS
+              if (event.locations.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: event.locations.map((loc) {
+                    return Chip(
+                      label: Text(
+                        loc,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    );
+                  }).toList(),
+                ),
+              ],
+
+              /// SPACE BEFORE BUTTONS
+              const SizedBox(height: 12),
+
+              /// OWNER BUTTONS
+              if (currentUsername != null && event.user == currentUsername)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      tooltip: 'Edit event',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EventFormPage(eventId: event.id),
+                          ),
+                        ).then((_) => _fetchData());
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      tooltip: 'Delete event',
+                      onPressed: () => _confirmDeleteEvent(event.id),
+                    ),
+                  ],
+                ),
+            ],
           ),
         ),
-      );
-    }
-
-    return ListView.builder(
-      padding: EdgeInsets.symmetric(
-        horizontal: isWide ? 40 : 20,
-        vertical: 10,
       ),
-      itemCount: _blogs.length,
-      itemBuilder: (context, index) {
-        final blog = _blogs[index];
-        return _buildBlogCard(blog);
-      },
     );
   }
 
-  Widget _buildBlogCard(Blog blog) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image
-          if (blog.image != null && blog.image!.isNotEmpty)
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(
-                blog.image!,
-                height: 200,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 200,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.article, size: 64, color: Colors.grey),
-                  );
-                },
-              ),
-            ),
 
-          // Content
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title
-                Text(
-                  blog.title,
-                  style: GoogleFonts.inter(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: primaryNavColor,
-                  ),
-                ),
-                const SizedBox(height: 8),
+  String _formatDate(DateTime date) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
 
-                // Author
-                Row(
-                  children: [
-                    const Icon(Icons.person, size: 16, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    Text(
-                      'By ${blog.author}',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+    final d = twoDigits(date.day);
+    final m = twoDigits(date.month);
+    final y = date.year.toString().substring(2);
+    final h = twoDigits(date.hour);
+    final min = twoDigits(date.minute);
 
-                // Body preview
-                Text(
-                  blog.body,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: Colors.grey[800],
-                    height: 1.5,
-                  ),
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
+    return '$d/$m/$y $h:$min';
+  }
+
+  Widget _card({
+    required String title,
+    required String description,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ListTile(
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          description,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+        ),
+        onTap: onTap,
       ),
     );
   }

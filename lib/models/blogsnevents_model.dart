@@ -23,32 +23,32 @@ class Event {
         required this.isOwner,
     });
 
-    factory Event.fromJson(Map<String, dynamic> json) {
-        // Helper function to safely parse DateTime
+    factory Event.fromJson(
+        Map<String, dynamic> json, {
+            String? currentUsername,
+        }) {
         DateTime parseDateTime(dynamic value) {
             if (value == null) return DateTime.now();
             if (value is DateTime) return value;
             try {
                 return DateTime.parse(value.toString());
-            } catch (e) {
+            } catch (_) {
                 return DateTime.now();
             }
         }
-
         return Event(
-            id: json['id']?.toString() ?? '',
-            name: json['name']?.toString() ?? '',
-            image: json['image']?.toString(),
-            description: json['description']?.toString() ?? '',
+            id: json['id'],
+            name: json['name'],
+            image: json['image'],
+            description: json['description'],
             startingDate: parseDateTime(json['starting_date']),
             endingDate: parseDateTime(json['ending_date']),
-            user: json['user']?.toString() ?? '',
-            locations: json['locations'] is List
-                ? List<String>.from(json['locations'])
-                : [],
+            user: json['user'],
+            locations: List<String>.from(json['locations'] ?? []),
             isOwner: json['is_owner'] == true,
         );
     }
+
 
     Map<String, dynamic> toJson() {
         return {

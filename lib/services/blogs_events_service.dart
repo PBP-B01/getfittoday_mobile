@@ -1,87 +1,74 @@
-import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:getfittoday_mobile/models/blogsnevents_model.dart';
+import 'package:pbp_django_auth/pbp_django_auth.dart';
+import 'package:getfittoday_mobile/utils/constants.dart';
+
 
 class BlogEventService {
-  static const String baseUrl = 'http://localhost:8000';
 
+  static const String _baseApiUrl =
+      '$djangoBaseUrl/blognevent/api';
 
-  // Fetch all events
-  Future<List<Event>> fetchEvents(CookieRequest request) async {
-    try {
-      final response = await request.get('$baseUrl/blognevent/api/events/');
-
-      if (response is List) {
-        return response.map((json) => Event.fromJson(json as Map<String, dynamic>)).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Error fetching events: $e');
-      return [];
-    }
-  }
-
-  // Fetch all blogs
   Future<List<Blog>> fetchBlogs(CookieRequest request) async {
-    try {
-      final response = await request.get('$baseUrl/blognevent/api/blogs/');
+    final url = '$_baseApiUrl/blogs/';
+    print('FETCH BLOGS URL: $url');
 
-      if (response is List) {
-        return response.map((json) => Blog.fromJson(json as Map<String, dynamic>)).toList();
-      }
-      return [];
-    } catch (e) {
-      print('Error fetching blogs: $e');
-      return [];
+    final response = await request.get(url);
+
+    if (response is String) {
+      throw Exception('Server returned HTML instead of JSON (blogs list)');
     }
+
+    return (response as List)
+        .map<Blog>((json) => Blog.fromJson(json))
+        .toList();
   }
 
-  // Fetch single event detail
-  Future<Event?> fetchEventDetail(CookieRequest request, String eventId) async {
-    try {
-      final response = await request.get('$baseUrl/blognevent/api/event/$eventId/');
-      return Event.fromJson(response as Map<String, dynamic>);
-    } catch (e) {
-      print('Error fetching event detail: $e');
-      return null;
+  Future<List<Event>> fetchEvents(CookieRequest request) async {
+    final url = '$_baseApiUrl/events/';
+    print('FETCH EVENTS URL: $url');
+
+    final response = await request.get(url);
+
+    if (response is String) {
+      throw Exception('Server returned HTML instead of JSON (events list)');
     }
+
+    return (response as List)
+        .map<Event>((json) => Event.fromJson(json))
+        .toList();
   }
 
-  // Fetch single blog detail
-  Future<Blog?> fetchBlogDetail(CookieRequest request, String blogId) async {
-    try {
-      final response = await request.get('$baseUrl/blognevent/api/blog/$blogId/');
-      return Blog.fromJson(response as Map<String, dynamic>);
-    } catch (e) {
-      print('Error fetching blog detail: $e');
-      return null;
+  Future<Map<String, dynamic>> fetchBlogDetail(
+      CookieRequest request,
+      String blogId,
+      ) async {
+    final url = '$_baseApiUrl/blogs/$blogId/';
+    print('DETAIL URL (BLOG): $url');
+
+    final response = await request.get(url);
+
+    if (response is String) {
+      print(response.substring(0, 200));
+      throw Exception('Server returned HTML instead of JSON (blog detail)');
     }
+
+    return response as Map<String, dynamic>;
   }
 
-  // Delete event
-  Future<bool> deleteEvent(CookieRequest request, String eventId) async {
-    try {
-      final response = await request.post(
-        '$baseUrl/blognevent/delete-event/$eventId/',
-        {},
-      );
-      return response['success'] == true;
-    } catch (e) {
-      print('Error deleting event: $e');
-      return false;
-    }
-  }
+  Future<Map<String, dynamic>> fetchEventDetail(
+      CookieRequest request,
+      String eventId,
+      ) async {
+    final url = '$_baseApiUrl/events/$eventId/';
+    print('DETAIL URL (EVENT): $url');
 
-  // Delete blog
-  Future<bool> deleteBlog(CookieRequest request, String blogId) async {
-    try {
-      final response = await request.post(
-        '$baseUrl/blognevent/delete-blog/$blogId/',
-        {},
-      );
-      return response['success'] == true;
-    } catch (e) {
-      print('Error deleting blog: $e');
-      return false;
+    final response = await request.get(url);
+
+    if (response is String) {
+      print(response.substring(0, 200));
+      throw Exception('Server returned HTML instead of JSON (event detail)');
     }
+
+    return response as Map<String, dynamic>;
   }
 }

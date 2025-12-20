@@ -86,6 +86,7 @@ class MyApp extends StatelessWidget {
           '/register': (context) => const RegisterPage(),
           '/home': (context) => const MyHomePage(),
           '/booking': (context) => const BookingReservationPage(),
+          '/blogsnevents': (context) => const BlogsEventsPage(),
         },
       ),
     );
