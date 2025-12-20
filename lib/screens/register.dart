@@ -149,7 +149,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                             final username = _usernameController.text;
                             final password1 = _passwordController.text;
-                                _confirmPasswordController.text;
+                            final password2 = _confirmPasswordController.text;
 
                             try {
                               final response = await request.postJson(
@@ -157,7 +157,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                 jsonEncode(
                                   {
                                     'username': username,
-                                    'password': password1,
+                                    'password1': password1,
+                                    'password2': password2,
                                   },
                                 ),
                               );
