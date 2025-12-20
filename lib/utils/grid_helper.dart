@@ -18,7 +18,7 @@ class GridHelper {
 
   static Set<String> getVisibleGridIds(LatLngBounds bounds) {
     final visibleIds = <String>{};
-    
+
     final swLat = bounds.southwest.latitude;
     final swLng = bounds.southwest.longitude;
     final neLat = bounds.northeast.latitude;
@@ -34,7 +34,7 @@ class GridHelper {
         visibleIds.add('$row-$col');
       }
     }
-    
+
     return visibleIds;
   }
 }

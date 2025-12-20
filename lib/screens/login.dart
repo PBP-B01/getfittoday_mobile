@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
-import 'package:getfittoday_mobile/screens/home.dart';
 import 'package:getfittoday_mobile/screens/register.dart';
 import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,6 +17,15 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  String? _nextRouteFromArgs(Object? args) {
+    if (args is String && args.trim().isNotEmpty) return args.trim();
+    if (args is Map) {
+      final next = args['next'];
+      if (next is String && next.trim().isNotEmpty) return next.trim();
+    }
+    return null;
+  }
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -28,6 +36,8 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
+    final nextRoute =
+        _nextRouteFromArgs(ModalRoute.of(context)?.settings.arguments);
 
     return Scaffold(
       appBar: AppBar(
@@ -129,11 +139,13 @@ class _LoginPageState extends State<LoginPage> {
                                     fallbackUsername: uname,
                                   );
 
-                              Navigator.pushReplacement(
+                              final targetRoute = (nextRoute == null ||
+                                      nextRoute == '/login')
+                                  ? '/home'
+                                  : nextRoute;
+                              Navigator.pushReplacementNamed(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (context) => const MyHomePage(),
-                                ),
+                                targetRoute,
                               );
 
                               ScaffoldMessenger.of(context)

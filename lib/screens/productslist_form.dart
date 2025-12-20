@@ -13,13 +13,13 @@ class ProductFormPage extends StatefulWidget {
 
 class _ProductFormPageState extends State<ProductFormPage> {
   final _formKey = GlobalKey<FormState>();
-  
+
   String _name = "";
   int _price = 0;
   String _imageUrl = "";
   String _rating = "";
   String _unitsSold = "";
-  String _storeId = ""; 
+  String _storeId = "";
 
   @override
   Widget build(BuildContext context) {
@@ -86,8 +86,8 @@ class _ProductFormPageState extends State<ProductFormPage> {
                             "name": _name,
                             "price": _price,
                             "image_url": _imageUrl,
-                            "rating": _rating, // Opsional
-                            "units_sold": _unitsSold, // Opsional
+                            "rating": _rating,
+                            "units_sold": _unitsSold,
                             "store": int.parse(_storeId)
                         }),
                     );

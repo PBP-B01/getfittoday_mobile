@@ -36,7 +36,6 @@ String? _extractUsername(Map<String, dynamic> data) {
 }
 
 bool _extractIsAdmin(Map<String, dynamic> data) {
-  // Common boolean flags.
   for (final key in <String>[
     'is_admin',
     'isAdmin',
@@ -51,13 +50,11 @@ bool _extractIsAdmin(Map<String, dynamic> data) {
     }
   }
 
-  // Nested user payloads (e.g. { user: {...} }).
   final user = data['user'];
   if (user is Map<String, dynamic>) {
     return _extractIsAdmin(user);
   }
 
-  // Role strings.
   final dynamic roleValue = data['role'] ?? data['user_role'] ?? data['userRole'];
   if (roleValue != null) {
     final role = roleValue.toString().toLowerCase();
@@ -68,7 +65,6 @@ bool _extractIsAdmin(Map<String, dynamic> data) {
     }
   }
 
-  // Group lists.
   final groups = data['groups'];
   if (groups is List) {
     for (final g in groups) {
@@ -88,3 +84,4 @@ bool _parseBool(dynamic value) {
   final v = value.toString().trim().toLowerCase();
   return v == 'true' || v == '1' || v == 'yes' || v == 'y';
 }
+

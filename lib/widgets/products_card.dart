@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/screens/products_entry_list.dart';
 import 'package:getfittoday_mobile/screens/productslist_form.dart';
 import 'package:getfittoday_mobile/state/auth_state.dart';
-// import 'package:getfittoday_mobile/screens/login.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 

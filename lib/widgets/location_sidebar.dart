@@ -25,7 +25,7 @@ class _LocationSidebarState extends State<LocationSidebar> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   List<FitnessSpot> _filteredSpots = [];
-  bool _isInternalSelection = false; // Flag to track source of selection
+  bool _isInternalSelection = false;
 
   @override
   void initState() {
@@ -40,14 +40,11 @@ class _LocationSidebarState extends State<LocationSidebar> {
     if (widget.spots != oldWidget.spots) {
       _onSearchChanged();
     }
-    
-    // Scroll to selected spot if it changed and wasn't selected from the sidebar itself
+
     if (widget.selectedSpot != oldWidget.selectedSpot && widget.selectedSpot != null) {
       if (_isInternalSelection) {
-        // Reset flag and don't scroll
         _isInternalSelection = false;
       } else {
-        // Selection came from map (or elsewhere), so scroll to it
         _scrollToSelectedSpot();
       }
     }
@@ -55,21 +52,17 @@ class _LocationSidebarState extends State<LocationSidebar> {
 
   void _scrollToSelectedSpot() {
     if (widget.selectedSpot == null || _isInternalSelection) return;
-    
+
     final index = _filteredSpots.indexWhere((s) => s.placeId == widget.selectedSpot!.placeId);
     if (index != -1) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
-          // Calculate offset based on index and estimated item height.
-          // This is still an approximation. For exact scrolling, we'd need keys.
-          // But to fix the "glitch", we ensure we don't animate if we are already there or if it's internal.
-          
-          final double itemHeight = 130.0; // Matches itemExtent
+
+          final double itemHeight = 130.0;
           final double targetOffset = index * itemHeight;
           final double maxScroll = _scrollController.position.maxScrollExtent;
           final double offset = targetOffset.clamp(0.0, maxScroll);
 
-          // Only animate if the difference is significant to avoid small jitters
           if ((_scrollController.offset - offset).abs() > 10) {
              _scrollController.animateTo(
               offset,
@@ -109,7 +102,7 @@ class _LocationSidebarState extends State<LocationSidebar> {
       width: widget.isMobile ? double.infinity : 350,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: widget.isMobile 
+        borderRadius: widget.isMobile
             ? const BorderRadius.vertical(top: Radius.circular(24))
             : null,
         boxShadow: [
@@ -121,12 +114,11 @@ class _LocationSidebarState extends State<LocationSidebar> {
         ],
       ),
       child: ClipRRect(
-        borderRadius: widget.isMobile 
+        borderRadius: widget.isMobile
             ? const BorderRadius.vertical(top: Radius.circular(24))
             : BorderRadius.zero,
         child: Column(
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
@@ -143,8 +135,7 @@ class _LocationSidebarState extends State<LocationSidebar> {
                 ),
               ),
             ),
-            
-            // Search
+
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -172,14 +163,13 @@ class _LocationSidebarState extends State<LocationSidebar> {
               ),
             ),
 
-            // List
             Expanded(
               child: _filteredSpots.isEmpty
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24.0),
                         child: Text(
-                          widget.spots.isEmpty 
+                          widget.spots.isEmpty
                             ? 'No spots found in this area.\nTry panning the map.'
                             : 'No spots match your search.',
                           textAlign: TextAlign.center,
@@ -189,15 +179,14 @@ class _LocationSidebarState extends State<LocationSidebar> {
                     )
                   : ListView.builder(
                       controller: _scrollController,
-                      itemExtent: 130.0, // Enforce fixed height for accurate scrolling
+                      itemExtent: 130.0,
                       itemCount: _filteredSpots.length,
                       itemBuilder: (context, index) {
                         final spot = _filteredSpots[index];
                         final isSelected = widget.selectedSpot?.placeId == spot.placeId;
-                        
+
                         return InkWell(
                           onTap: () {
-                            // Set internal selection flag
                             _isInternalSelection = true;
                             widget.onSpotSelected(spot);
                           },
@@ -221,11 +210,11 @@ class _LocationSidebarState extends State<LocationSidebar> {
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center, // Center content vertically
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
                                   spot.name,
-                                  maxLines: 1, // Ensure 1 line
+                                  maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.inter(
                                     fontWeight: FontWeight.bold,

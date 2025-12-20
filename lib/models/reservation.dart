@@ -8,6 +8,7 @@ class Reservation {
   final DateTime? startDateTime;
   final DateTime? endDateTime;
   final bool canCancel;
+  final String? ownerName;
 
   Reservation({
     required this.id,
@@ -19,6 +20,7 @@ class Reservation {
     required this.endDateTime,
     this.notes,
     this.canCancel = false,
+    this.ownerName,
   });
 
   factory Reservation.fromJson(Map<String, dynamic> json) {
@@ -27,7 +29,6 @@ class Reservation {
     final normalizedStatus =
         rawStatus.isEmpty ? 'PENDING' : rawStatus.toUpperCase();
 
-    // New API from MyBookingAPI: uses start/end/place_name.
     final hasNewApiFields =
         json.containsKey('start') || json.containsKey('place_name');
     if (hasNewApiFields) {
@@ -42,6 +43,7 @@ class Reservation {
       );
 
       final location = json['place_name']?.toString() ?? 'Lokasi belum diisi';
+      final owner = json['owner']?.toString();
       final title = (json['title']?.toString().trim().isNotEmpty ?? false)
           ? json['title']!.toString()
           : location.isNotEmpty
@@ -62,10 +64,10 @@ class Reservation {
         endDateTime: endDateTime,
         notes: json['notes']?.toString(),
         canCancel: canCancel,
+        ownerName: owner,
       );
     }
 
-    // Legacy/local API: date + time + location.
     final rawDate = json['date']?.toString() ?? '';
     final rawTime = json['time']?.toString() ?? '';
     final parsedDateTime = _parseDateFromParts(rawDate, rawTime);
@@ -117,12 +119,10 @@ List<Reservation> sortReservationsByStatusAndTime(
 }
 
 int _reservationComparator(Reservation a, Reservation b) {
-  // Keep ongoing items first, closed items last.
   if (a.isClosed != b.isClosed) {
     return a.isClosed ? 1 : -1;
   }
 
-  // Then order by scheduled time ascending.
   final aDate = a.startDateTime;
   final bDate = b.startDateTime;
   if (aDate != null && bDate != null) {
@@ -202,7 +202,6 @@ String _effectiveStatusForTime(
   DateTime? start,
   DateTime? end,
 }) {
-  // Auto-cancel pending bookings yang sudah lewat waktunya.
   final upper = currentStatus.toUpperCase();
   final bool isPending = upper.contains('PENDING');
   if (!isPending) return currentStatus;

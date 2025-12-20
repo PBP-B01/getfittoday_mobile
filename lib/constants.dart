@@ -6,14 +6,29 @@ const String _configuredBaseUrl =
 const String _webBaseUrl = 'http://localhost:8000';
 const String _androidEmulatorBaseUrl = 'http://10.0.2.2:8000';
 
-/// Endpoint untuk data lokasi (fitness spots) dari Django home app.
-/// Sesuaikan dengan project urls; jika home di-root, gunakan '/api/fitness-spots/'.
-const String homeLocationsEndpoint = '/api/fitness-spots/'; // GET
+const String homeLocationsEndpoint = '/api/fitness-spots/';
 
-/// Daftar booking milik user (lihat booking/urls.py -> api/mine/).
-const String bookingListEndpoint = '/booking/api/mine/'; // GET
-/// Endpoint membuat booking baru (booking/urls.py -> book/).
-const String bookingCreateEndpoint = '/booking/book/'; // POST
+const String _bookingListEndpointEnv =
+    String.fromEnvironment('BOOKING_LIST_ENDPOINT', defaultValue: '');
+const String _bookingCreateEndpointEnv =
+    String.fromEnvironment('BOOKING_CREATE_ENDPOINT', defaultValue: '');
+const String _defaultBookingListEndpoint = '/booking/api/mine/';
+const List<String> bookingListEndpointCandidates = <String>[
+  _defaultBookingListEndpoint,
+  '/booking/api/bookings/',
+  '/booking/api/list/',
+];
+const String _defaultBookingCreateEndpoint = '/booking/book/';
+
+String get bookingListEndpoint {
+  if (_bookingListEndpointEnv.isNotEmpty) return _bookingListEndpointEnv;
+  return _defaultBookingListEndpoint;
+}
+
+String get bookingCreateEndpoint {
+  if (_bookingCreateEndpointEnv.isNotEmpty) return _bookingCreateEndpointEnv;
+  return _defaultBookingCreateEndpoint;
+}
 
 String get djangoBaseUrl {
   if (_configuredBaseUrl.isNotEmpty) {
@@ -24,14 +39,12 @@ String get djangoBaseUrl {
   }
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
-      // Android emulator exposes the host machine via 10.0.2.2.
       return _androidEmulatorBaseUrl;
     case TargetPlatform.iOS:
     case TargetPlatform.macOS:
     case TargetPlatform.windows:
     case TargetPlatform.linux:
     case TargetPlatform.fuchsia:
-      // Desktop & iOS simulators can talk to localhost directly.
       return _webBaseUrl;
   }
 }

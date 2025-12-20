@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 
 class ProductDetailDialog extends StatefulWidget {
   final Product product;
-  final Function() onRefresh; // Callback untuk refresh list jika ada perubahan (Edit/Delete)
+  final Function() onRefresh;
 
   const ProductDetailDialog({super.key, required this.product, required this.onRefresh});
 
@@ -17,20 +17,20 @@ class ProductDetailDialog extends StatefulWidget {
 }
 
 class _ProductDetailDialogState extends State<ProductDetailDialog> {
-  
+
   @override
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
-    final loggedIn = request.loggedIn;
-    final isAdmin = context.watch<AuthState>().isAdmin;
+    final auth = context.watch<AuthState>();
+    final loggedIn = auth.isLoggedIn;
+    final isAdmin = auth.isAdmin;
 
     return AlertDialog(
       backgroundColor: Colors.white,
       surfaceTintColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       titlePadding: const EdgeInsets.all(0),
-      
-      // --- HEADER DIALOG (Judul + Tombol X) ---
+
       title: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: const BoxDecoration(
@@ -40,7 +40,7 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              "Detail Produk", 
+              "Detail Produk",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1B2B5A))
             ),
             InkWell(
@@ -51,15 +51,13 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
         ),
       ),
 
-      // --- ISI KONTEN ---
       content: SizedBox(
-        width: 500, // Atur lebar agar tidak terlalu kecil di Tablet/Web
+        width: 500,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 1. GAMBAR
               Center(
                 child: Container(
                   constraints: const BoxConstraints(maxHeight: 250),
@@ -83,20 +81,24 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
 
               const SizedBox(height: 20),
 
-              // 2. DETAIL TEXT
               Text(
                 widget.product.fields.name,
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1B2B5A)),
               ),
               const SizedBox(height: 8),
-              
-              // Toko
+
               Row(
                 children: [
                   const Icon(Icons.store, size: 16, color: Colors.grey),
                   const SizedBox(width: 6),
                   const Text("Dijual oleh: ", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  Text(widget.product.fields.storeName, style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+                  Expanded(
+                    child: Text(
+                      widget.product.fields.storeName, 
+                      style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ],
               ),
 
@@ -104,15 +106,13 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
               const Divider(),
               const SizedBox(height: 12),
 
-              // Harga
               Text(
                 "Rp${widget.product.fields.price}",
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)), // Indigo
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
               ),
 
               const SizedBox(height: 12),
 
-              // Rating & Terjual
               Row(
                 children: [
                   const Icon(Icons.star, color: Colors.amber, size: 18),
@@ -120,9 +120,9 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
                   Text(widget.product.fields.rating, style: const TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(width: 4),
                   const Text("Rating", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  
+
                   const SizedBox(width: 16),
-                  
+
                   const Icon(Icons.shopping_cart_outlined, color: Colors.grey, size: 18),
                   const SizedBox(width: 4),
                   Text(widget.product.fields.unitsSold, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -131,7 +131,6 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
 
               const SizedBox(height: 24),
 
-              // 3. TOMBOL AKSI (ADMIN / USER / GUEST)
               if (!loggedIn)
                 _buildLoginButton()
               else if (isAdmin)
@@ -143,7 +142,6 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
         ),
       ),
 
-      // --- FOOTER (Tombol Tutup) ---
       actions: [
         OutlinedButton(
           onPressed: () => Navigator.pop(context),
@@ -154,7 +152,6 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
     );
   }
 
-  // === WIDGET TOMBOL SAMA SEPERTI SEBELUMNYA ===
 
   Widget _buildLoginButton() {
     return SizedBox(
@@ -166,7 +163,7 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
           navigator.pop();
           navigator.pushNamed('/login');
         },
-        child: const Text("Login untuk Beli"),
+        child: const Text("Login untuk beli"),
       ),
     );
   }
@@ -179,17 +176,59 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
         label: const Text("Tambah ke Keranjang"),
         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF4F46E5), foregroundColor: Colors.white),
         onPressed: () async {
-          final response = await request.post("http://127.0.0.1:8000/store/product/${widget.product.pk}/add-to-cart/", {"quantity": "1"});
+          final response = await request.post("$djangoBaseUrl/store/product/${widget.product.pk}/add-to-cart/", {"quantity": "1"});
           if (mounted) {
             if (response['success'] == true) {
-              Navigator.pop(context); // Tutup Pop-up Detail
-              widget.onRefresh(); // Refresh Cart Count di Parent
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Berhasil masuk keranjang"), backgroundColor: Colors.green));
+              widget.onRefresh();
+              _showCartSuccessDialog(context);
             } else {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gagal menambahkan"), backgroundColor: Colors.red));
             }
           }
         },
+      ),
+    );
+  }
+
+  void _showCartSuccessDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: Colors.green.shade100, shape: BoxShape.circle),
+              child: const Icon(Icons.check, color: Colors.green, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Berhasil Ditambahkan!", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 6),
+                  Text('"${widget.product.fields.name}" ditambahkan ke keranjang.', style: const TextStyle(color: Colors.black54, fontSize: 13)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+            },
+            style: OutlinedButton.styleFrom(foregroundColor: Colors.black, side: const BorderSide(color: Colors.grey)),
+            child: const Text("Tutup"),
+          ),
+        ],
       ),
     );
   }
@@ -201,16 +240,13 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2563EB), foregroundColor: Colors.white),
             onPressed: () {
-              // Buka Dialog Edit, tumpuk di atas dialog detail
               showDialog(
                 context: context,
                 builder: (context) => ProductFormDialog(
                   product: widget.product,
                   onSave: () {
-                    Navigator.pop(context); // Tutup Form Edit
-                    Navigator.pop(context); // Tutup Detail juga agar refresh list utama
-                    widget.onRefresh(); 
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Produk berhasil diupdate!")));
+                    Navigator.pop(context); 
+                    widget.onRefresh();
                   },
                 ),
               );
@@ -223,37 +259,132 @@ class _ProductDetailDialogState extends State<ProductDetailDialog> {
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
             onPressed: () {
-              // Konfirmasi Hapus
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text("Konfirmasi Hapus"),
-                  content: const Text("Yakin hapus produk ini?"),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Batal")),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                      onPressed: () async {
-                        Navigator.pop(ctx); // Tutup Konfirmasi
-                        final response = await request.post("$djangoBaseUrl/store/product/${widget.product.pk}/delete/", {});
-                        if (response['success'] == true) {
-                          if(mounted) {
-                             Navigator.pop(context); // Tutup Detail Pop-up
-                             widget.onRefresh(); // Refresh List Utama
-                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Produk dihapus!")));
-                          }
-                        }
-                      },
-                      child: const Text("Hapus", style: TextStyle(color: Colors.white)),
-                    ),
-                  ],
-                ),
-              );
+              _showDeleteConfirmDialog(context, request);
             },
             child: const Text("Delete"),
           ),
         ),
       ],
+    );
+  }
+
+  void _showDeleteConfirmDialog(BuildContext context, CookieRequest request) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                "Konfirmasi Hapus",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          "Apakah Anda yakin untuk menghapus produk ini? Aksi ini tidak bisa dibatalkan.",
+          style: TextStyle(color: Colors.black54),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.black87,
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              
+              final response = await request.post("$djangoBaseUrl/store/product/${widget.product.pk}/delete/", {});
+              
+              if (response['success'] == true) {
+                if(mounted) {
+                   _showSuccessDeleteDialog(context);
+                }
+              }
+            },
+            child: const Text("Ya, hapus"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSuccessDeleteDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check, color: Colors.green, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Berhasil Dihapus!",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Produk "${widget.product.fields.name}" berhasil dihapus.',
+                    style: const TextStyle(color: Colors.black54, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+              widget.onRefresh();
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.black87,
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+            child: const Text("Tutup"),
+          ),
+        ],
+      ),
     );
   }
 }
