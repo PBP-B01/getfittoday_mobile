@@ -147,6 +147,132 @@ class ProductEntryCard extends StatelessWidget {
     );
   }
 
+  void _showDeleteConfirmation(BuildContext context, CookieRequest request) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                "Konfirmasi Hapus",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          "Apakah Anda yakin untuk menghapus produk ini? Aksi ini tidak bisa dibatalkan.",
+          style: TextStyle(color: Colors.black54),
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.black87,
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+            child: const Text("Batal"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              
+              final response = await request.post(
+                "$djangoBaseUrl/store/product/${product.pk}/delete/",
+                {},
+              );
+
+              if (response['success'] == true) {
+                onRefresh();
+                
+                if (context.mounted) {
+                  _showSuccessDeleteDialog(context);
+                }
+              } else {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Gagal menghapus produk"), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            child: const Text("Ya, hapus"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSuccessDeleteDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check, color: Colors.green, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Berhasil Dihapus!",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Produk "${product.fields.name}" berhasil dihapus.',
+                    style: const TextStyle(color: Colors.black54, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          OutlinedButton(
+            onPressed: () => Navigator.pop(ctx),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.black87,
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+            child: const Text("Tutup"),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCompactButton(BuildContext context, {
     required String label,
     required Color color,
@@ -205,10 +331,55 @@ class ProductEntryCard extends StatelessWidget {
             );
             if (context.mounted && response['success'] == true) {
               onRefresh();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("Masuk keranjang!"),
-                  backgroundColor: Colors.green,
+              
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: Colors.white,
+                  surfaceTintColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  content: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade100,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.check, color: Colors.green, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "Berhasil Ditambahkan!",
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '"${product.fields.name}" ditambahkan ke keranjang.',
+                              style: const TextStyle(color: Colors.black54, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black,
+                        side: const BorderSide(color: Colors.grey),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
+                      child: const Text("Tutup"),
+                    ),
+                  ],
                 ),
               );
             }
@@ -255,63 +426,7 @@ class ProductEntryCard extends StatelessWidget {
                 icon: Icons.delete,
                 color: Colors.red[700]!,
                 textColor: Colors.white,
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text("Konfirmasi Hapus"),
-                      content: const Text(
-                        "Apakah Anda yakin menghapus produk ini?",
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text(
-                            "Batal",
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () async {
-                            Navigator.pop(ctx);
-                            final response = await request.post(
-                              "$djangoBaseUrl/store/product/${product.pk}/delete/",
-                              {},
-                            );
-
-                            if (!context.mounted) return;
-
-                            final success = response['success'] == true;
-                            if (success) {
-                              onRefresh();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text("Produk berhasil dihapus!"),
-                                ),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    response['error']?.toString() ??
-                                        response['message']?.toString() ??
-                                        "Gagal menghapus produk.",
-                                  ),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          },
-                          child: const Text("Ya, hapus"),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                onPressed: () => _showDeleteConfirmation(context, request),
               ),
             ),
           ],

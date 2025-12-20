@@ -1,6 +1,5 @@
 
 import 'package:flutter/material.dart';
-
 import 'package:getfittoday_mobile/models/product.dart';
 import 'package:getfittoday_mobile/screens/cart_page.dart';
 import 'package:getfittoday_mobile/screens/home.dart';
@@ -9,7 +8,6 @@ import 'package:getfittoday_mobile/widgets/product_form_dialog.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:getfittoday_mobile/state/auth_state.dart';
-
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
 
@@ -71,7 +69,6 @@ class _ProductEntryListPageState extends State<ProductEntryListPage> {
         }
       }
     } catch (_) {
-      // ignore: avoid_print
       print('whoami check failed');
     }
   }
