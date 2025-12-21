@@ -55,9 +55,31 @@ android {
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
+    signingConfigs {
+        create("release") {
+            // Check if keystore keys are available in env vars
+            val isCI = System.getenv("CI") == "true" || System.getenv("BITRISE_IO") == "true"
+            
+            if (System.getenv("KEY_ALIAS") != null) {
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+                storeFile = file(System.getenv("KEYSTORE_PATH") ?: "release-keystore.jks")
+                storePassword = System.getenv("KEY_PASSWORD") 
+            } else {
+                 // Fallback to debug for now if no keys provided locally, or handle local.properties here
+                // For now, mirroring debug config if keys missing to prevent local build failures
+                val debugConfig = getByName("debug")
+                keyAlias = debugConfig.keyAlias
+                keyPassword = debugConfig.keyPassword
+                storeFile = debugConfig.storeFile
+                storePassword = debugConfig.storePassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
