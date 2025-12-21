@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:getfittoday_mobile/utils/constants.dart';
-
+import 'package:getfittoday_mobile/constants.dart';
 class BlogFormPage extends StatefulWidget {
   final String? blogId;
   const BlogFormPage({

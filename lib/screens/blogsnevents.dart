@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/models/blogsnevents_model.dart';
 import 'package:getfittoday_mobile/services/blogs_events_service.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
-import 'package:getfittoday_mobile/utils/constants.dart';
+import 'package:getfittoday_mobile/constants.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 import 'blogsnevents_detail.dart';
