@@ -55,24 +55,9 @@ android {
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
-    signingConfigs {
-        create("release") {
-            // Read from Environment Variables (CI) or local.properties (Local)
-            val keystoreFile = System.getenv("KEY_PATH") 
-                ?: localProperties.getProperty("storeFile")
-            
-            if (keystoreFile != null) {
-                storeFile = file(keystoreFile)
-                storePassword = System.getenv("KEY_PASSWORD") ?: localProperties.getProperty("storePassword")
-                keyPassword = System.getenv("KEY_PASSWORD") ?: localProperties.getProperty("keyPassword")
-                keyAlias = System.getenv("KEY_ALIAS") ?: localProperties.getProperty("keyAlias") ?: "release"
-            }
-        }
-    }
-
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
