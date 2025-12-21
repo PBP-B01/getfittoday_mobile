@@ -146,7 +146,6 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
     final request = context.watch<CookieRequest>();
     final bool isLoggedIn = request.loggedIn;
 
-    // 🔒 Safety: force-disable filter if logged out
     if (!isLoggedIn && showOnlyMine) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         setState(() => showOnlyMine = false);
@@ -180,7 +179,6 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
         children: [
           const SiteNavBar(),
 
-          /// 🏷 PAGE TITLE
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
             child: Container(
@@ -202,7 +200,6 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
             ),
           ),
 
-          /// 🔍 SEARCH BAR
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
@@ -261,13 +258,11 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
             ),
           ),
 
-          /// 🔘 SLIDING TOGGLE
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: _slidingToggle(),
           ),
 
-          /// ☑ VIEW MY OWN (DISABLED WHEN LOGGED OUT)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SwitchListTile(
@@ -278,7 +273,7 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
                   showOnlyMine = value;
                 });
               }
-                  : null, // 👈 disables switch
+                  : null,
               title: Text(
                 'View my own',
                 style: TextStyle(
@@ -295,7 +290,6 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
             ),
           ),
 
-          /// 📃 LIST
           Expanded(
             child: ListView.builder(
               itemCount:
@@ -312,7 +306,6 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
     );
   }
 
-  /// 🔘 Animated sliding toggle
   Widget _slidingToggle() {
     return Container(
       height: 44,
@@ -400,7 +393,6 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              /// TITLE
               Text(
                 blog.title,
                 style: const TextStyle(
@@ -411,7 +403,6 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
 
               const SizedBox(height: 8),
 
-              /// DESCRIPTION (15 WORDS)
               Text(
                 briefDescription(),
                 style: const TextStyle(fontSize: 14),
@@ -419,7 +410,6 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
 
               const SizedBox(height: 12),
 
-              /// OWNER BUTTONS
             if (blog.isOwner)
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -483,7 +473,6 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              /// TITLE + DATES
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -514,13 +503,11 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
 
               const SizedBox(height: 8),
 
-              /// DESCRIPTION (15 WORDS)
               Text(
                 briefDescription(),
                 style: const TextStyle(fontSize: 14),
               ),
 
-              /// LOCATIONS
               if (event.locations.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Wrap(
@@ -538,10 +525,8 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
                 ),
               ],
 
-              /// SPACE BEFORE BUTTONS
               const SizedBox(height: 12),
 
-              /// OWNER BUTTONS
             if (event.isOwner)
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,

@@ -102,16 +102,13 @@ class _EventFormPageState extends State<EventFormPage> {
       '$djangoBaseUrl/blognevent/api/events/${widget.eventId}/',
     );
 
-    // BASIC FIELDS
     _nameController.text = response['name'] ?? '';
     _descriptionController.text = response['description'] ?? '';
     _imageController.text = response['image'] ?? '';
 
-    // DATES
     _startDate = DateTime.parse(response['starting_date']);
     _endDate = DateTime.parse(response['ending_date']);
 
-    // LOCATIONS (IMPORTANT)
     final List locations = response['locations'] ?? [];
 
     _selectedPlaceIds

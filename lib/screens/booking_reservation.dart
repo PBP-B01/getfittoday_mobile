@@ -692,7 +692,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
         ..showSnackBar(
           SnackBar(
             content: Text(
-              'Booking error: ${e.toString().split(":").last.trim()}',
+              'Booking error: ${e.toString()}',
             ),
             backgroundColor: Colors.red.shade400,
           ),

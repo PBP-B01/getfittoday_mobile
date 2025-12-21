@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/screens/register.dart';
 import 'package:getfittoday_mobile/state/auth_state.dart';
@@ -16,6 +17,14 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  String _formatError(Object error) {
+    if (error is http.ClientException) {
+      final uri = error.uri?.toString();
+      return uri == null ? error.message : '${error.message} (URL: $uri)';
+    }
+    return error.toString();
+  }
 
   String? _nextRouteFromArgs(Object? args) {
     if (args is String && args.trim().isNotEmpty) return args.trim();
@@ -181,7 +190,7 @@ class _LoginPageState extends State<LoginPage> {
                               ..showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    'Login error: ${e.toString().split(":").last.trim()}',
+                                    'Login error: ${_formatError(e)}',
                                   ),
                                   backgroundColor: Colors.red.shade400,
                                 ),

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/screens/login.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -18,6 +19,14 @@ class _RegisterPageState extends State<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
+  String _formatError(Object error) {
+    if (error is http.ClientException) {
+      final uri = error.uri?.toString();
+      return uri == null ? error.message : '${error.message} (URL: $uri)';
+    }
+    return error.toString();
+  }
 
   @override
   void dispose() {
@@ -149,6 +158,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
                             final username = _usernameController.text;
                             final password1 = _passwordController.text;
+                            final password2 =
                                 _confirmPasswordController.text;
 
                             try {
@@ -157,7 +167,8 @@ class _RegisterPageState extends State<RegisterPage> {
                                 jsonEncode(
                                   {
                                     'username': username,
-                                    'password': password1,
+                                    'password1': password1,
+                                    'password2': password2,
                                   },
                                 ),
                               );
@@ -196,7 +207,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
-                                    'Register error: ${e.toString().split(":").last.trim()}',
+                                    'Register error: ${_formatError(e)}',
                                   ),
                                   backgroundColor: Colors.red.shade400,
                                 ),

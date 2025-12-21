@@ -75,9 +75,6 @@ class _BlogsEventsDetailPageState extends State<BlogsEventsDetailPage> {
     return widget.isBlog ? _buildBlogDetail() : _buildEventDetail();
   }
 
-  /* ===========================
-     BLOG DETAIL
-     =========================== */
   Widget _buildBlogDetail() {
     final b = blog!;
 
@@ -119,9 +116,6 @@ class _BlogsEventsDetailPageState extends State<BlogsEventsDetailPage> {
     );
   }
 
-  /* ===========================
-     EVENT DETAIL
-     =========================== */
   Widget _buildEventDetail() {
     final e = event!;
 
@@ -183,9 +177,6 @@ class _BlogsEventsDetailPageState extends State<BlogsEventsDetailPage> {
     );
   }
 
-  /* ===========================
-     SHARED WIDGETS
-     =========================== */
   Widget _buildImage(String? imageUrl) {
     if (imageUrl == null || imageUrl.isEmpty) {
       return const SizedBox.shrink();

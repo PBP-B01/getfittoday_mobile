@@ -15,6 +15,18 @@ String _normalizeBaseUrl(String value) {
     normalized = normalized.substring(1, normalized.length - 1).trim();
   }
 
+  if (normalized.startsWith('//')) {
+    normalized = 'https:$normalized';
+  } else if (!normalized.startsWith('http://') &&
+      !normalized.startsWith('https://')) {
+    final lower = normalized.toLowerCase();
+    final isLocal = lower.startsWith('localhost') ||
+        lower.startsWith('127.0.0.1') ||
+        lower.startsWith('10.0.2.2');
+    final scheme = isLocal ? 'http://' : 'https://';
+    normalized = '$scheme$normalized';
+  }
+
   while (normalized.endsWith('/')) {
     normalized = normalized.substring(0, normalized.length - 1);
   }
