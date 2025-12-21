@@ -55,7 +55,7 @@ jobs:
           # Pass these in case your build.gradle uses System.getenv() for passwords
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEY_ALIAS: release
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release
 
       # (Manual "Sign APKs" step removed because Gradle does it in Step 4)
 
