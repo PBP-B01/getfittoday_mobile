@@ -22,8 +22,12 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.35.7' 
+          flutter-version: '3.35.7'
           channel: 'stable'
+
+      - run: |
+          mkdir -p assets
+          echo "${{ secrets.ENV_FILE }}" > assets/.env
 
       - run: flutter pub get
 
