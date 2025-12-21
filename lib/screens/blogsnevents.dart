@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/models/blogsnevents_model.dart';
 import 'package:getfittoday_mobile/services/blogs_events_service.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
-import 'package:getfittoday_mobile/utils/constants.dart';
+import 'package:getfittoday_mobile/constants.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 import 'blogsnevents_detail.dart';
@@ -159,8 +159,7 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
               b.title.toLowerCase().contains(searchQuery);
 
       final matchesOwner =
-          !showOnlyMine ||
-              (currentUsername != null && b.author == currentUsername);
+          !showOnlyMine || b.isOwner;
 
       return matchesSearch && matchesOwner;
     }).toList();
@@ -171,8 +170,7 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
               e.name.toLowerCase().contains(searchQuery);
 
       final matchesOwner =
-          !showOnlyMine ||
-              (currentUsername != null && e.user == currentUsername);
+          !showOnlyMine || e.isOwner;
 
       return matchesSearch && matchesOwner;
     }).toList();
@@ -226,7 +224,9 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
                         MaterialPageRoute(
                           builder: (context) => const BlogFormPage(),
                         ),
-                      );
+                      ).then((created) {
+                        if (created == true) _fetchData();
+                      });
 
                     } else if (value == 'event') {
                       Navigator.push(
@@ -234,7 +234,9 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
                         MaterialPageRoute(
                           builder: (context) => const EventFormPage(),
                         ),
-                      );
+                      ).then((created) {
+                        if (created == true) _fetchData();
+                      });
 
                     }
                   },
@@ -418,11 +420,11 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
               const SizedBox(height: 12),
 
               /// OWNER BUTTONS
-              if (currentUsername != null && blog.author == currentUsername)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
+            if (blog.isOwner)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
                       icon: const Icon(Icons.edit),
                       tooltip: 'Edit blog',
                       onPressed: () {
@@ -540,11 +542,11 @@ class _BlogsEventsPageState extends State<BlogsEventsPage> {
               const SizedBox(height: 12),
 
               /// OWNER BUTTONS
-              if (currentUsername != null && event.user == currentUsername)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
+            if (event.isOwner)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
                       icon: const Icon(Icons.edit),
                       tooltip: 'Edit event',
                       onPressed: () {

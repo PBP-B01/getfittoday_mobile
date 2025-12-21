@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
+import 'package:getfittoday_mobile/constants.dart';
 import '../models/event.dart';
 
-const String baseUrl = 'http://localhost:8000';
-
 Future<List<Event>> fetchEvents(CookieRequest request, int communityId) async {
-  final response = await request.get('$baseUrl/event/api/community/$communityId/');
+  final response = await request.get('$djangoBaseUrl/event/api/community/$communityId/');
 
   if (response['success'] == true) {
     List<dynamic> listEvents = response['events'];
@@ -18,7 +17,7 @@ Future<List<Event>> fetchEvents(CookieRequest request, int communityId) async {
 
 Future<Map<String, dynamic>> joinEvent(CookieRequest request, int eventId) async {
   final response = await request.post(
-      '$baseUrl/event/ajax/join/$eventId/',
+      '$djangoBaseUrl/event/ajax/join/$eventId/',
       {}
   );
 
@@ -27,14 +26,14 @@ Future<Map<String, dynamic>> joinEvent(CookieRequest request, int eventId) async
 
 Future<Map<String, dynamic>> leaveEvent(CookieRequest request, int eventId) async {
   final response = await request.post(
-      '$baseUrl/event/ajax/leave/$eventId/',
+      '$djangoBaseUrl/event/ajax/leave/$eventId/',
       {}
   );
   return response;
 }
 
 Future<List<Map<String, dynamic>>> fetchAdminCommunities(CookieRequest request) async {
-  final url = '$baseUrl/event/api/my-admin-communities/';
+  final url = '$djangoBaseUrl/event/api/my-admin-communities/';
 
   try {
     final response = await request.get(url);
@@ -55,8 +54,8 @@ Future<List<Map<String, dynamic>>> fetchAdminCommunities(CookieRequest request) 
 }
 
 Future<Map<String, dynamic>> createEvent(CookieRequest request, Map<String, dynamic> data) async {
-  final response = await request.post(
-    '$baseUrl/event/api/create/',
+  final response = await request.postJson(
+    '$djangoBaseUrl/event/api/create/',
     jsonEncode(data),
   );
   return response;

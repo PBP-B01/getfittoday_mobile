@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 
 enum BookingSort { newest, oldest }
 enum BookingStatusFilter { all, pending, cancelled }
+enum BookingScope { all, mine }
 
 class MyBookingsPage extends StatefulWidget {
   const MyBookingsPage({super.key});
@@ -26,10 +27,26 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
   bool _initialized = false;
   BookingSort _sort = BookingSort.newest;
   BookingStatusFilter _filter = BookingStatusFilter.all;
+  BookingScope _scope = BookingScope.all;
 
-  List<Reservation> _applyFilterAndSort(List<Reservation> items) {
+  List<Reservation> _applyFilterAndSort(
+    List<Reservation> items, {
+    required bool isAdmin,
+    String? currentUsername,
+  }) {
     Iterable<Reservation> filtered = items;
     final now = DateTime.now();
+
+    if (isAdmin && _scope == BookingScope.mine) {
+      final target = currentUsername?.trim().toLowerCase() ?? '';
+      if (target.isEmpty) {
+        filtered = const <Reservation>[];
+      } else {
+        filtered = filtered.where(
+          (r) => r.ownerName?.toLowerCase() == target,
+        );
+      }
+    }
 
     switch (_filter) {
       case BookingStatusFilter.pending:
@@ -242,7 +259,9 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = context.watch<AuthState>().isAdmin;
+    final authState = context.watch<AuthState>();
+    final isAdmin = authState.isAdmin;
+    final currentUsername = authState.username;
 
     return Scaffold(
       body: Container(
@@ -303,7 +322,11 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                       }
 
                       final reservations = snapshot.data ?? [];
-                      final displayed = _applyFilterAndSort(reservations);
+                      final displayed = _applyFilterAndSort(
+                        reservations,
+                        isAdmin: isAdmin,
+                        currentUsername: currentUsername,
+                      );
 
                       if (displayed.isEmpty) {
                         return RefreshIndicator(
@@ -318,10 +341,13 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                               const SizedBox(height: 8),
                               _Header(
                                 isAdmin: isAdmin,
+                                scope: isAdmin ? _scope : null,
                                 sort: _sort,
                                 filter: _filter,
                                 filterLabel: _labelFilter(_sort, _filter),
                                 onOpenFilter: _openFilterSheet,
+                                onScopeChanged: (scope) =>
+                                    setState(() => _scope = scope),
                               ),
                               const SizedBox(height: 12),
                               _EmptyState(onRefresh: _refresh),
@@ -342,10 +368,13 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
                             if (index == 1)
                               return _Header(
                                 isAdmin: isAdmin,
+                                scope: isAdmin ? _scope : null,
                                 sort: _sort,
                                 filter: _filter,
                                 filterLabel: _labelFilter(_sort, _filter),
                                 onOpenFilter: _openFilterSheet,
+                                onScopeChanged: (scope) =>
+                                    setState(() => _scope = scope),
                               );
                             final reservation = displayed[index - 2];
                             return _BookingCard(
@@ -374,17 +403,21 @@ class _MyBookingsPageState extends State<MyBookingsPage> {
 
 class _Header extends StatelessWidget {
   final bool isAdmin;
+  final BookingScope? scope;
   final BookingSort sort;
   final BookingStatusFilter filter;
   final String filterLabel;
   final VoidCallback onOpenFilter;
+  final ValueChanged<BookingScope>? onScopeChanged;
 
   const _Header({
     required this.isAdmin,
+    this.scope,
     required this.sort,
     required this.filter,
     required this.filterLabel,
     required this.onOpenFilter,
+    this.onScopeChanged,
   });
 
   @override
@@ -407,7 +440,7 @@ class _Header extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isAdmin ? 'All Bookings' : 'My Bookings',
+              isAdmin ? 'Bookings' : 'My Bookings',
               style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.w900,
@@ -417,7 +450,7 @@ class _Header extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               isAdmin
-                  ? 'Mode Admin: lihat semua booking dan hapus booking user.'
+                  ? 'Pilih tampilan untuk semua booking atau booking kamu sendiri.'
                   : 'Daftar semua booking kamu, mulai dari jadwal terdekat.',
               style: GoogleFonts.inter(
                 fontSize: 13.5,
@@ -425,6 +458,37 @@ class _Header extends StatelessWidget {
                 color: inkWeakColor,
               ),
             ),
+            if (isAdmin && scope != null && onScopeChanged != null) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.center,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: cardBorderColor),
+                    ),
+                    child: Row(
+                      children: [
+                        _ScopeButton(
+                          label: 'All bookings',
+                          isActive: scope == BookingScope.all,
+                          onTap: () => onScopeChanged!(BookingScope.all),
+                        ),
+                        _ScopeButton(
+                          label: 'My bookings',
+                          isActive: scope == BookingScope.mine,
+                          onTap: () => onScopeChanged!(BookingScope.mine),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             Align(
               alignment: Alignment.centerRight,
@@ -472,6 +536,43 @@ class _BackButtonRow extends StatelessWidget {
         },
         icon: const Icon(Icons.arrow_back_ios_new, size: 16),
         label: const Text('Back'),
+      ),
+    );
+  }
+}
+
+class _ScopeButton extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _ScopeButton({
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isActive ? primaryNavColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(
+              color: isActive ? Colors.white : Colors.grey[700],
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+          ),
+        ),
       ),
     );
   }

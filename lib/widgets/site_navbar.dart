@@ -451,7 +451,7 @@ class SiteNavBar extends StatelessWidget {
                       PopupMenuItem<_ProfileMenuAction>(
                         value: _ProfileMenuAction.bookings,
                         child: Text(
-                          isAdmin ? 'All users bookings' : 'My Bookings',
+                          isAdmin ? 'Bookings' : 'My Bookings',
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             color: primaryNavColor,

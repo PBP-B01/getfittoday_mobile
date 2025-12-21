@@ -7,6 +7,7 @@ class EventCard extends StatelessWidget {
   final VoidCallback? onJoinTap;
   final VoidCallback? onLeaveTap;
   final VoidCallback? onEditTap;
+  final VoidCallback? onDeleteTap;
 
   const EventCard({
     super.key,
@@ -14,6 +15,7 @@ class EventCard extends StatelessWidget {
     this.onJoinTap,
     this.onLeaveTap,
     this.onEditTap,
+    this.onDeleteTap,
   });
 
   @override
@@ -29,8 +31,10 @@ class EventCard extends StatelessWidget {
     }
 
     bool canEdit = event['can_edit'] ?? false;
+    bool canDelete = event['can_delete'] ?? false;
     bool isJoined = event['is_joined'] ?? false;
     bool isFinished = event['is_active'] == false;
+    bool isSuperAdmin = event['is_superadmin'] ?? false;
     String eventName = event['name'] ?? "Tanpa Nama";
 
     return Container(
@@ -98,12 +102,12 @@ class EventCard extends StatelessWidget {
 
           const SizedBox(height: 20),
 
-          Row(
-            children: [
-              if (canEdit) ...[
+          if (isSuperAdmin)
+            Row(
+              children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: onEditTap,
+                    onPressed: (canEdit && onEditTap != null) ? onEditTap : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFFFC107),
                       foregroundColor: Colors.black87,
@@ -115,54 +119,87 @@ class EventCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-              ],
-
-              Expanded(
-                flex: canEdit ? 1 : 2,
-                child: isJoined
-                    ? ElevatedButton(
-                  onPressed: () {
-                    _showLeaveConfirmationDialog(context, eventName);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: (canDelete && onDeleteTap != null) ? onDeleteTap : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD32F2F),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text("Delete", style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15)),
                   ),
-                  child: Text("Leave Event", style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15)),
-                )
-                    :
-                isFinished
-                    ? ElevatedButton(
-                  onPressed: null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey.shade300,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: Text(
-                      "Join Event",
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.grey.shade600)
-                  ),
-                )
-                    : ElevatedButton(
-                  onPressed: onJoinTap,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF00C853),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: Text("Join Event", style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15)),
                 ),
-              ),
-            ],
-          ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                if (canEdit) ...[
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: onEditTap,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFC107),
+                        foregroundColor: Colors.black87,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text("Edit", style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+
+                Expanded(
+                  flex: canEdit ? 1 : 2,
+                  child: isJoined
+                      ? ElevatedButton(
+                    onPressed: () {
+                      _showLeaveConfirmationDialog(context, eventName);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text("Leave Event", style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15)),
+                  )
+                      :
+                  isFinished
+                      ? ElevatedButton(
+                    onPressed: null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade300,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text(
+                        "Join Event",
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.grey.shade600)
+                    ),
+                  )
+                      : ElevatedButton(
+                    onPressed: onJoinTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00C853),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: Text("Join Event", style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15)),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );

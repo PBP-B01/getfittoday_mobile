@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:getfittoday_mobile/constants.dart';
 
 class EditEventForm extends StatefulWidget {
   final Map<String, dynamic> eventData;
@@ -90,7 +91,7 @@ class _EditEventFormState extends State<EditEventForm> {
 
     try {
       final response = await request.postJson(
-        "http://localhost:8000/event/api/edit/${widget.eventData['id']}/",
+        "$djangoBaseUrl/event/api/edit/${widget.eventData['id']}/",
         jsonEncode({
           "name": _nameController.text,
           "description": _descController.text,
@@ -135,7 +136,7 @@ class _EditEventFormState extends State<EditEventForm> {
 
     try {
       final response = await request.post(
-          "http://localhost:8000/event/api/delete/${widget.eventData['id']}/",
+          "$djangoBaseUrl/event/api/delete/${widget.eventData['id']}/",
           {}
       );
 

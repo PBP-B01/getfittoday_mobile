@@ -12,13 +12,13 @@ import 'edit_event_form.dart';
 class CommunityEventsPage extends StatefulWidget {
   final int communityId;
   final String communityName;
-  final bool isAdmin;
+  final bool canManage;
 
   const CommunityEventsPage({
     super.key,
     required this.communityId,
     required this.communityName,
-    required this.isAdmin,
+    required this.canManage,
   });
 
   @override
@@ -56,7 +56,7 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
     final request = context.read<CookieRequest>();
 
     try {
-      final response = await request.get('http://localhost:8000/event/api/list/');
+      final response = await request.get('$djangoBaseUrl/event/api/list/');
       List<Map<String, dynamic>> listData = [];
       Set<String> communities = {};
 
@@ -168,7 +168,7 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
   Future<void> _handleJoinEvent(int eventId) async {
     final request = context.read<CookieRequest>();
     try {
-      final response = await request.post('http://localhost:8000/event/api/join/$eventId/', {});
+      final response = await request.post('$djangoBaseUrl/event/api/join/$eventId/', {});
       if (mounted) {
         if (response['status'] == 'success') {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Berhasil Join!"), backgroundColor: Colors.green));
@@ -183,7 +183,7 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
   Future<void> _handleLeaveEvent(int eventId) async {
     final request = context.read<CookieRequest>();
     try {
-      final response = await request.post('http://localhost:8000/event/api/leave/$eventId/', {});
+      final response = await request.post('$djangoBaseUrl/event/api/leave/$eventId/', {});
       if (mounted) {
         if (response['status'] == 'success') {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Berhasil keluar event."), backgroundColor: Colors.orange));
@@ -193,6 +193,41 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
         }
       }
     } catch (e) { print("Error Leave: $e"); }
+  }
+
+  Future<void> _handleDeleteEvent(int eventId) async {
+    bool confirm = await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+              title: const Text("Hapus Event?"),
+              content: const Text("Tindakan ini tidak bisa dibatalkan."),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Batal")),
+                TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Hapus", style: TextStyle(color: Colors.red))),
+              ]
+          )
+      ) ?? false;
+
+    if (!confirm) return;
+
+    final request = context.read<CookieRequest>();
+    try {
+      final response = await request.post(
+          "$djangoBaseUrl/event/api/delete/$eventId/",
+          {}
+      );
+
+      if (mounted) {
+        if (response['status'] == 'success') {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Event berhasil dihapus."), backgroundColor: Colors.red));
+          _fetchEvents();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(response['message'] ?? "Gagal menghapus event.")));
+        }
+      }
+    } catch (e) {
+      print("Error Delete: $e");
+    }
   }
 
   void _showCreateEventForm() {
@@ -305,7 +340,7 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
         PopupMenuItem(
           height: 40,
           onTap: () async {
-            final response = await request.logout('http://localhost:8000/auth/logout_flutter/');
+            final response = await request.logout('$djangoBaseUrl/auth/logout/');
             if (context.mounted && response['status']) Navigator.pushReplacementNamed(context, '/login');
           },
           child: Text("Logout", style: GoogleFonts.inter(color: Colors.red, fontWeight: FontWeight.w600)),
@@ -422,7 +457,7 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
                                 ),
                               ],
                             ),
-                            if (widget.isAdmin) ...[
+                            if (widget.canManage) ...[
                               const SizedBox(height: 12),
                               SizedBox(
                                 width: double.infinity, height: 40,
@@ -531,6 +566,7 @@ class _CommunityEventsPageState extends State<CommunityEventsPage> {
                               onJoinTap: () => _handleJoinEvent(event['id']),
                               onLeaveTap: () => _handleLeaveEvent(event['id']),
                               onEditTap: () => _showEditEventForm(event),
+                              onDeleteTap: () => _handleDeleteEvent(event['id']),
                             );
                           },
                         ),

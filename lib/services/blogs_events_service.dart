@@ -1,12 +1,10 @@
 import 'package:getfittoday_mobile/models/blogsnevents_model.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
-import 'package:getfittoday_mobile/utils/constants.dart';
+import 'package:getfittoday_mobile/constants.dart';
 
 
 class BlogEventService {
-
-  static const String _baseApiUrl =
-      '$djangoBaseUrl/blognevent/api';
+  String get _baseApiUrl => '$djangoBaseUrl/blognevent/api';
 
   Future<List<Blog>> fetchBlogs(CookieRequest request) async {
     final url = '$_baseApiUrl/blogs/';

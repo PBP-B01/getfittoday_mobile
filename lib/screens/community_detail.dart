@@ -158,7 +158,9 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
 
     final String? imagePath = communityData?['image'];
     final bool hasJoined = communityData?['has_joined'] ?? false;
-    final bool isAdmin = communityData?['is_admin'] ?? false;
+    final bool isCommunityAdmin = communityData?['is_admin'] ?? false;
+    final bool isSuperAdmin = communityData?['is_superadmin'] ?? false;
+    final bool canManage = communityData?['can_manage'] ?? (isCommunityAdmin || isSuperAdmin);
 
     final String rawSchedule = communityData?['schedule'] ?? "";
     final List<dynamic> membersList = communityData?['members'] ?? [];
@@ -223,7 +225,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                           ],
                         ),
 
-                        if (isAdmin)
+                        if (canManage)
                           Container(
                             decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle),
                             child: PopupMenuButton<String>(
@@ -344,15 +346,15 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: isAdmin ? null : () => toggleJoin(request, hasJoined),
+                          onPressed: canManage ? null : () => toggleJoin(request, hasJoined),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: isAdmin ? Colors.grey : (hasJoined ? Colors.red.shade400 : primaryNavColor),
+                            backgroundColor: canManage ? Colors.grey : (hasJoined ? Colors.red.shade400 : primaryNavColor),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           child: Text(
-                            isAdmin ? "You are Admin" : (hasJoined ? "Leave Community" : "Join Community"),
+                            canManage ? "You are Admin" : (hasJoined ? "Leave Community" : "Join Community"),
                             style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 16),
                           ),
                         ),
@@ -369,7 +371,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                                 builder: (context) => CommunityEventsPage(
                                   communityId: widget.communityId,
                                   communityName: name,
-                                  isAdmin: isAdmin,
+                                  canManage: canManage,
                                 ),
                               ),
                             );
@@ -424,7 +426,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                       const Divider(color: Colors.white70, thickness: 2),
                       const SizedBox(height: 24),
 
-                      _buildTabContent(description, category, fitnessSpotName, contact, rawSchedule, membersList, isAdmin, established),
+                      _buildTabContent(description, category, fitnessSpotName, contact, rawSchedule, membersList, canManage, established),
                     ],
                   ),
                 ),

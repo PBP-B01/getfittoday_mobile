@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
-import 'package:getfittoday_mobile/utils/constants.dart';
+import 'package:getfittoday_mobile/constants.dart';
 
 class BlogFormPage extends StatefulWidget {
   final String? blogId;
@@ -31,7 +31,7 @@ class _BlogFormPageState extends State<BlogFormPage> {
     });
   }
 
-  Future<void> _submitBlog(CookieRequest request) async {
+  Future<bool> _submitBlog(CookieRequest request) async {
     final url = widget.blogId == null
         ? '$djangoBaseUrl/blognevent/api/blog/create/'
         : '$djangoBaseUrl/blognevent/api/blogs/${widget.blogId}/edit/';
@@ -45,15 +45,46 @@ class _BlogFormPageState extends State<BlogFormPage> {
       },
     );
 
-    if (response['success'] == true) {
-      Navigator.pop(context); // go back to list
-    } else {
-      // show error
+    if (response is String) {
+      throw Exception('Server returned HTML instead of JSON');
     }
+
+    return response['success'] == true;
   }
+
   Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
     final request = context.read<CookieRequest>();
-    await _submitBlog(request);
+    if (!request.loggedIn) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must be logged in')),
+      );
+      return;
+    }
+
+    setState(() => isSubmitting = true);
+    try {
+      final ok = await _submitBlog(request);
+      if (!mounted) return;
+
+      if (ok) {
+        Navigator.pop(context, true);
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to save blog')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save blog: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => isSubmitting = false);
+    }
   }
   Future<void> _loadBlogData() async {
     if (widget.blogId == null) return;
@@ -68,6 +99,10 @@ class _BlogFormPageState extends State<BlogFormPage> {
       '$djangoBaseUrl/blognevent/api/blogs/${widget.blogId}/',
     );
 
+    if (response is String) {
+      throw Exception('Server returned HTML instead of JSON');
+    }
+
     _titleController.text = response['title'] ?? '';
     _bodyController.text = response['body'] ?? '';
     _imageController.text = response['image'] ?? '';
@@ -75,6 +110,14 @@ class _BlogFormPageState extends State<BlogFormPage> {
     setState(() {
       isLoading = false;
     });
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _bodyController.dispose();
+    _imageController.dispose();
+    super.dispose();
   }
 
   @override

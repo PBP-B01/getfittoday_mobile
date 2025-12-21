@@ -5,6 +5,7 @@ import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../services/community_service.dart';
+import 'package:getfittoday_mobile/constants.dart';
 
 class CreateEventForm extends StatefulWidget {
   final int initialCommunityId;
@@ -35,8 +36,6 @@ class _CreateEventFormState extends State<CreateEventForm> {
   bool _isLoading = false;
   bool _isFetching = true;
   String? _fetchError;
-
-  final String baseUrl = "http://localhost:8000";
 
   @override
   void initState() {
@@ -117,7 +116,7 @@ class _CreateEventFormState extends State<CreateEventForm> {
 
     try {
       final response = await request.postJson(
-        "$baseUrl/event/api/create/",
+        "$djangoBaseUrl/event/api/create/",
         jsonEncode({
           "name": _nameController.text,
           "description": _descController.text,
