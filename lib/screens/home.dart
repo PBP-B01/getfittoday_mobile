@@ -381,6 +381,7 @@ class _MyHomePageState extends State<MyHomePage> {
           markers: _markers,
           onMapCreated: (GoogleMapController controller) {
             _mapController = controller;
+            _updateVisibleSpots();
           },
           onCameraIdle: _onCameraIdle,
           cameraTargetBounds: _cameraTargetBounds,

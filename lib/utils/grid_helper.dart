@@ -29,8 +29,11 @@ class GridHelper {
     final startCol = ((swLng - gridOriginLng) / gridSizeDeg).floor();
     final endCol = ((neLng - gridOriginLng) / gridSizeDeg).floor();
 
-    for (var row = startRow; row <= endRow; row++) {
-      for (var col = startCol; col <= endCol; col++) {
+    final safeStartRow = startRow < 0 ? 0 : startRow;
+    final safeStartCol = startCol < 0 ? 0 : startCol;
+
+    for (var row = safeStartRow; row <= endRow; row++) {
+      for (var col = safeStartCol; col <= endCol; col++) {
         visibleIds.add('$row-$col');
       }
     }

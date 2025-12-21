@@ -1,3 +1,40 @@
+import java.util.Properties
+
+plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("dev.flutter.flutter-gradle-plugin")
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+
+fun readEnvValue(envFile: File, key: String): String? {
+    if (!envFile.exists()) return null
+    val regex = Regex("""^\s*${Regex.escape(key)}\s*=\s*"?([^"]*)"?\s*$""")
+    return envFile.readLines()
+        .asSequence()
+        .map { it.trim() }
+        .firstNotNullOfOrNull { line ->
+            if (line.isEmpty() || line.startsWith("#")) return@firstNotNullOfOrNull null
+            val match = regex.find(line) ?: return@firstNotNullOfOrNull null
+            match.groupValues.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() }
+        }
+}
+
+val mapsApiKey =
+    System.getenv("GOOGLE_MAPS_API_KEY")
+        ?: localProperties.getProperty("GOOGLE_MAPS_API_KEY")?.takeIf { it.isNotBlank() }
+        ?: readEnvValue(rootProject.file("../assets/.env"), "GOOGLE_MAPS_API_KEY")
+        ?: ""
+
+android {
+    namespace = "com.example.getfittoday_mobile"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -9,22 +46,17 @@
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.getfittoday_mobile"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        
-        manifestPlaceholders["MAPS_API_KEY"] = env.getProperty("GOOGLE_MAPS_API_KEY") ?: ""
+
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }

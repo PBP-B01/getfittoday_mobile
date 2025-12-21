@@ -1,0 +1,9 @@
+# Example local-only config (do not commit secrets)
+#
+# Copy needed lines into `android/local.properties` on your machine.
+# `android/local.properties` is ignored by git.
+#
+# Google Maps Android SDK API key (required for maps to render on Android).
+# See README.md for setup notes (enable Maps SDK for Android + restrict by package + SHA-1).
+GOOGLE_MAPS_API_KEY=YOUR_KEY_HERE
+
