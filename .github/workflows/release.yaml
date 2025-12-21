@@ -11,17 +11,15 @@ jobs:
   build-and-release:
     name: Build, Sign, and Release APK
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. Get Version
       - name: Get version from pubspec.yaml
         id: version
         run: echo "version=$(grep "version:" pubspec.yaml | cut -c10-)" >> $GITHUB_OUTPUT
 
-      # 2. Setup Environment
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -34,7 +32,6 @@ jobs:
           flutter-version: '3.35.7'
           channel: 'stable'
 
-      # 3. Create .env
       - name: Create .env file
         run: |
           mkdir -p assets
@@ -43,28 +40,33 @@ jobs:
       - name: Get packages
         run: flutter pub get
 
-      # ▼▼▼ CHANGED: DECODE KEYSTORE FIRST & PUT IN ANDROID FOLDER ▼▼▼
-      # We move this BEFORE the build step so Gradle can find it.
-      - name: Decode Keystore
-        run: echo "${{ secrets.KEY_JKS }}" | base64 -d > android/release-keystore.jks
-      # ▲▲▲ END CHANGE ▲▲▲
-
-      # 4. Build APK (Gradle will now find the key and sign it automatically)
       - name: Build APK
-        env:
-          # Pass these in case your build.gradle uses System.getenv() for passwords
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          KEY_ALIAS: release
         run: flutter build apk --release
 
-      # (Manual "Sign APKs" step removed because Gradle does it in Step 4)
+      # --- START MANUAL SIGNING STEPS ---
 
-      # 5. Clean up secrets
+      - name: Decode Keystore
+        # Decodes to root directory so jarsigner can find it
+        run: echo "${{ secrets.KEY_JKS }}" | base64 -d > release-keystore.jks
+
+      - name: Sign APKs
+        run: |
+          # Loop through all generated APKs
+          for apk in build/app/outputs/flutter-apk/*.apk; do
+            echo "Signing $apk..."
+            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+              -keystore release-keystore.jks \
+              -storepass "${{ secrets.KEY_PASSWORD }}" \
+              -keypass "${{ secrets.KEY_PASSWORD }}" \
+              "$apk" release
+          done
+
       - name: Cleanup Keystore
         if: always()
-        run: rm -f android/release-keystore.jks
+        run: rm -f release-keystore.jks
 
-      # 6. Generate Date and Tag
+      # --- END MANUAL SIGNING STEPS ---
+
       - name: Get current date
         id: date
         run: echo "date=$(TZ='Asia/Jakarta' date +'%A %d-%m-%Y %T WIB')" >> $GITHUB_OUTPUT
@@ -73,7 +75,6 @@ jobs:
         id: tag
         run: echo "tag=v${{ steps.version.outputs.version }}-$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
 
-      # 7. Create GitHub Release
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
