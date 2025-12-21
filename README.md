@@ -87,4 +87,4 @@ Response (Tanggapan): Django mengonversi data (dari database/objek Python) menja
 
 Decoding & Rendering: Flutter menerima respons JSON tersebut. Flutter melakukan decode (mengubah JSON menjadi objek Dart). Terakhir, widget di Flutter diperbarui (biasanya menggunakan FutureBuilder) untuk menampilkan data tersebut ke layar pengguna.
 
-Link Figma: 
+Link Figma: https://www.figma.com/design/7gvw8cy3G1SJ4SsQ1LjAAN/B01---GETFITTODAY?node-id=0-1&t=mLg31SQtAcSKKln3-1

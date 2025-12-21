@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/models/fitness_spot.dart';
 import 'package:getfittoday_mobile/services/fitness_spot_service.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:getfittoday_mobile/utils/grid_helper.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
 import 'package:getfittoday_mobile/widgets/location_sidebar.dart';
@@ -25,35 +26,60 @@ class _MyHomePageState extends State<MyHomePage> {
   Set<Marker> _markers = {};
   final Map<String, List<FitnessSpot>> _gridCache = {};
   final Set<String> _loadedGrids = {};
-  
+
   GoogleMapController? _mapController;
   bool _isFullScreen = false;
-  bool _isSidebarVisible = false; // Sidebar hidden by default
+  bool _isSidebarVisible = false;
   bool _isLoading = false;
   Timer? _debounceTimer;
   CameraTargetBounds _cameraTargetBounds = CameraTargetBounds.unbounded;
-  
-  // Sidebar/Selection state
+
   List<FitnessSpot> _visibleSpots = [];
   FitnessSpot? _selectedSpot;
-  
-  // Info Window State
+
   bool _showInfoWindow = false;
 
-  // Initial Camera Position (Depok/UI)
   static const CameraPosition _kInitialPosition = CameraPosition(
     target: LatLng(-6.362143, 106.824928),
     zoom: 14.0,
   );
 
+  Future<void> _ensureSession() async {
+    final request = context.read<CookieRequest>();
+    if (request.loggedIn) return;
+    try {
+      final resp = await request.get('$djangoBaseUrl/auth/whoami/');
+      final loggedIn = resp is Map &&
+          (resp['logged_in'] == true ||
+              resp['loggedIn'] == true ||
+              resp['status'] == true ||
+              resp['status'] == 'success');
+      if (loggedIn) {
+        request.loggedIn = true;
+        request.jsonData = Map<String, dynamic>.from(resp);
+        if (mounted) {
+          context.read<AuthState>().setFromLoginResponse(
+                Map<String, dynamic>.from(resp),
+                fallbackUsername: resp['username']?.toString(),
+              );
+        }
+      }
+    } catch (_) {
+    }
+  }
+
   @override
   void initState() {
     super.initState();
-    _fetchBoundaries();
-    // Initial fetch for the starting position
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updateVisibleSpots();
+      _bootstrap();
     });
+  }
+
+  Future<void> _bootstrap() async {
+    await _ensureSession();
+    await _fetchBoundaries();
+    _updateVisibleSpots();
   }
 
   @override
@@ -90,14 +116,13 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
       final bounds = await _mapController!.getVisibleRegion();
       final visibleGridIds = GridHelper.getVisibleGridIds(bounds);
-      
-      // Identify grids that need fetching
+
       final gridsToFetch = visibleGridIds.where((id) => !_loadedGrids.contains(id)).toList();
 
       if (gridsToFetch.isNotEmpty) {
         setState(() => _isLoading = true);
         final request = context.read<CookieRequest>();
-        
+
         await Future.wait(gridsToFetch.map((gridId) async {
           try {
             final spots = await _fitnessSpotService.fetchFitnessSpots(request, gridId: gridId);
@@ -107,11 +132,10 @@ class _MyHomePageState extends State<MyHomePage> {
             print('Error fetching grid $gridId: $e');
           }
         }));
-        
+
         setState(() => _isLoading = false);
       }
 
-      // Update markers and visible spots list
       _rebuildMarkersAndList(visibleGridIds);
 
     } catch (e) {
@@ -140,8 +164,8 @@ class _MyHomePageState extends State<MyHomePage> {
               position: LatLng(spot.latitude, spot.longitude),
               onTap: () => _onSpotSelected(spot),
               icon: BitmapDescriptor.defaultMarkerWithHue(
-                isSelected 
-                    ? BitmapDescriptor.hueBlue 
+                isSelected
+                    ? BitmapDescriptor.hueBlue
                     : BitmapDescriptor.hueRed
               ),
             ),
@@ -161,56 +185,29 @@ class _MyHomePageState extends State<MyHomePage> {
       _selectedSpot = spot;
       _showInfoWindow = true;
       _isSidebarVisible = true;
-      
-      // Update markers directly here to avoid double setState
-      // We need to create a new set of markers with updated colors
+
       final Set<Marker> newMarkers = {};
       for (var m in _markers) {
-        // Check if this marker corresponds to the selected spot
-        // Note: MarkerId might have _selected suffix already
         final isTarget = m.markerId.value == spot.placeId || m.markerId.value == '${spot.placeId}_selected';
-        
+
         newMarkers.add(
           m.copyWith(
             iconParam: BitmapDescriptor.defaultMarkerWithHue(
               isTarget ? BitmapDescriptor.hueBlue : BitmapDescriptor.hueRed
             ),
-            // Update ID to force refresh if needed, but copyWith keeps ID. 
-            // To force refresh on web, we might need to replace the marker entirely with new ID.
-            // Let's stick to the previous logic but inside this loop.
           )
         );
       }
-      // Actually, _rebuildMarkersAndList does a full rebuild from cache which is safer for consistency.
-      // Let's just call _rebuildMarkersAndList but WITHOUT setState inside it?
-      // No, _rebuildMarkersAndList calls setState.
-      // So we should NOT call setState here, but let _rebuildMarkersAndList do it?
-      // But we need to set _selectedSpot first.
-      // So:
-      // 1. Set _selectedSpot (local var or state?)
-      // 2. Call _rebuildMarkersAndList
     });
-    
-    // Wait, _rebuildMarkersAndList uses _selectedSpot from state.
-    // So we must set it first.
-    // If we call setState here, then _rebuildMarkersAndList calls setState again.
-    // Solution: Create a version of _rebuildMarkersAndList that returns the new values instead of setting state,
-    // OR just modify _rebuildMarkersAndList to accept an optional 'shouldSetState' param?
-    // Or just inline the logic here?
-    // Let's inline the marker update logic or make _rebuildMarkersAndList smarter.
-    
-    // Better approach:
-    // Just call _rebuildMarkersAndList and pass the new selected spot?
-    // No, let's keep it simple.
-    // I will remove the setState wrapping here and just set the variables, then call _rebuildMarkersAndList which calls setState.
-    
+
+
+
     _selectedSpot = spot;
     _showInfoWindow = true;
     _isSidebarVisible = true;
-    
+
     _rebuildMarkersAndList(_loadedGrids);
 
-    // Move camera
     _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(
         LatLng(spot.latitude, spot.longitude),
@@ -231,7 +228,6 @@ class _MyHomePageState extends State<MyHomePage> {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Test if location services are enabled.
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       if (mounted) {
@@ -254,7 +250,7 @@ class _MyHomePageState extends State<MyHomePage> {
         return;
       }
     }
-    
+
     if (permission == LocationPermission.deniedForever) {
       if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -262,7 +258,7 @@ class _MyHomePageState extends State<MyHomePage> {
           );
       }
       return;
-    } 
+    }
 
     final position = await Geolocator.getCurrentPosition();
     _mapController?.animateCamera(
@@ -392,12 +388,11 @@ class _MyHomePageState extends State<MyHomePage> {
           myLocationEnabled: true,
           myLocationButtonEnabled: false,
           padding: EdgeInsets.only(
-            top: 60, 
+            top: 60,
             bottom: (!isWide && _isSidebarVisible) ? 20 : 0
-          ), 
+          ),
         ),
-        
-        // Center Crosshair
+
         const Center(
           child: IgnorePointer(
             child: Icon(
@@ -407,8 +402,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
         ),
-        
-        // Info Window (Bottom Card)
+
         if (_showInfoWindow && _selectedSpot != null)
           Positioned(
             bottom: 20,
@@ -416,7 +410,6 @@ class _MyHomePageState extends State<MyHomePage> {
             right: 20,
             child: GestureDetector(
               onTap: () {
-                // Navigate to details or something?
               },
               child: Container(
                 padding: const EdgeInsets.all(16),
@@ -491,14 +484,12 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
 
-        // Controls Container
         Positioned(
           top: 16,
           right: 16,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // Full Screen Toggle
               FloatingActionButton.small(
                 heroTag: 'fullscreen_toggle',
                 backgroundColor: Colors.white,
@@ -506,15 +497,12 @@ class _MyHomePageState extends State<MyHomePage> {
                 onPressed: () {
                   setState(() {
                     _isFullScreen = !_isFullScreen;
-                    // When going fullscreen, ensure sidebar visibility is appropriate?
-                    // Let's keep current state.
                   });
                 },
                 child: Icon(_isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen),
               ),
               const SizedBox(height: 8),
-              
-              // Sidebar Toggle
+
               FloatingActionButton.small(
                 heroTag: 'sidebar_toggle',
                 backgroundColor: Colors.white,
@@ -528,7 +516,6 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               const SizedBox(height: 8),
 
-              // My Location
               FloatingActionButton.small(
                 heroTag: 'my_location',
                 backgroundColor: Colors.white,
@@ -538,7 +525,6 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               const SizedBox(height: 8),
 
-              // Add Spot Button
               FloatingActionButton.small(
                 heroTag: 'add_spot',
                 backgroundColor: Colors.green,
@@ -548,7 +534,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     final bounds = await _mapController!.getVisibleRegion();
                     final centerLat = (bounds.northeast.latitude + bounds.southwest.latitude) / 2;
                     final centerLng = (bounds.northeast.longitude + bounds.southwest.longitude) / 2;
-                    
+
                     if (mounted) {
                       showModalBottomSheet(
                         context: context,
@@ -558,7 +544,6 @@ class _MyHomePageState extends State<MyHomePage> {
                           latitude: centerLat,
                           longitude: centerLng,
                           onSuccess: () {
-                            // Clear local cache to force re-fetch
                             setState(() {
                               _gridCache.clear();
                               _loadedGrids.clear();
@@ -576,7 +561,6 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
 
-        // Loading Indicator
         if (_isLoading)
           Positioned(
             top: 16,

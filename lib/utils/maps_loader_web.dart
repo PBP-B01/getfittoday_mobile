@@ -12,7 +12,6 @@ Future<void> loadGoogleMaps() async {
     return;
   }
 
-  // Check if already loaded
   if (html.document.querySelector('#google-maps-script') != null) {
     return;
   }
@@ -32,6 +31,6 @@ Future<void> loadGoogleMaps() async {
   });
 
   html.document.head!.append(script);
-  
+
   return completer.future;
 }

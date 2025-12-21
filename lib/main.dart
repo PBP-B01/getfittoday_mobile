@@ -6,16 +6,25 @@ import 'package:getfittoday_mobile/screens/home.dart';
 import 'package:getfittoday_mobile/screens/login.dart';
 import 'package:getfittoday_mobile/screens/register.dart';
 import 'package:getfittoday_mobile/screens/products_entry_list.dart';
+import 'package:getfittoday_mobile/screens/my_bookings.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:getfittoday_mobile/screens/community_list.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:getfittoday_mobile/utils/maps_loader.dart' if (dart.library.html) 'package:getfittoday_mobile/utils/maps_loader_web.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   await dotenv.load(fileName: "assets/.env");
+
+  await initializeDateFormatting('id_ID', null);
+
   await loadGoogleMaps();
   runApp(const MyApp());
 }
@@ -35,8 +44,11 @@ class MyApp extends StatelessWidget {
       onSecondary: const Color(0xFF0B2E55),
     );
 
-    return Provider<CookieRequest>(
-      create: (_) => CookieRequest(),
+    return MultiProvider(
+      providers: [
+        Provider<CookieRequest>(create: (_) => CookieRequest()),
+        ChangeNotifierProvider<AuthState>(create: (_) => AuthState()),
+      ],
       child: MaterialApp(
         title: 'GetFitToday',
         theme: ThemeData(
@@ -80,13 +92,16 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const LoginPage(),
+        home: const MyHomePage(),
         routes: {
           '/login': (context) => const LoginPage(),
           '/register': (context) => const RegisterPage(),
           '/home': (context) => const MyHomePage(),
           '/booking': (context) => const BookingReservationPage(),
           '/blogsnevents': (context) => const BlogsEventsPage(),
+          '/community': (context) => const CommunityListPage(),
+          '/store': (context) => const ProductEntryListPage(),
+          '/my-bookings': (context) => const MyBookingsPage(),
         },
       ),
     );

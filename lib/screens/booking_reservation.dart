@@ -1,13 +1,16 @@
-﻿import 'dart:convert';
-
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/models/fitness_spot.dart';
+import 'package:getfittoday_mobile/models/reservation.dart';
 import 'package:getfittoday_mobile/services/fitness_spot_service.dart';
+import 'package:getfittoday_mobile/services/reservation_service.dart';
 import 'package:getfittoday_mobile/widgets/site_navbar.dart';
+import 'package:getfittoday_mobile/state/auth_state.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 
 class BookingReservationPage extends StatefulWidget {
   const BookingReservationPage({super.key});
@@ -25,26 +28,35 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   final _timeController = TextEditingController();
   final FocusNode _locationFocusNode = FocusNode();
   final _locationService = FitnessSpotService();
+  final _reservationService = ReservationService();
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   String? _selectedTimeLabel;
   String _selectedDuration = '1 Jam';
   FitnessSpot? _selectedLocation;
+  bool _filterTopRated = false;
+  bool _sortByNearest = true;
+  Position? _userPosition;
 
   late Future<List<Reservation>> _reservationsFuture;
   late Future<void> _locationsFuture;
   bool _futureInitialized = false;
+  bool _sessionChecked = false;
+  List<FitnessSpot> _allLocations = const [];
   List<FitnessSpot> _locations = const [];
+  List<Reservation> _myReservations = const [];
 
   final List<String> _timeSlots =
       List.generate(15, (index) => '${(index + 8).toString().padLeft(2, '0')}:00');
   final List<String> _durations = const [
-    '30 Menit',
     '1 Jam',
-    '1.5 Jam',
     '2 Jam',
+    '3 Jam',
+    '4 Jam',
+    '5 Jam',
   ];
+  static const int _closingHour = 22;
 
   @override
   void initState() {
@@ -70,61 +82,476 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     super.didChangeDependencies();
     if (!_futureInitialized) {
       final request = context.read<CookieRequest>();
-      _reservationsFuture = _fetchReservations(request);
-      _locationsFuture = _loadLocations(request);
       _futureInitialized = true;
+      _bootstrapSession(request);
     }
   }
 
-  Future<List<Reservation>> _fetchReservations(CookieRequest request) async {
-    dynamic raw;
+  Future<void> _bootstrapSession(CookieRequest request) async {
+    await _ensureSession(request);
+    if (!mounted) return;
+    final loggedIn =
+        context.read<AuthState>().isLoggedIn || request.loggedIn;
+    if (loggedIn) {
+      _reloadReservations(request);
+      _locationsFuture = _loadLocations(request);
+    }
+    setState(() => _sessionChecked = true);
+  }
+
+  Future<void> _ensureSession(CookieRequest request) async {
+    if (request.loggedIn) return;
     try {
-      raw = await request.get('$djangoBaseUrl$bookingListEndpoint') as dynamic;
-    } catch (e) {
-      throw FormatException(
-        'Response bukan JSON. Pastikan $bookingListEndpoint mengembalikan JSON. Error: $e',
-      );
+      final resp = await request.get('$djangoBaseUrl/auth/whoami/');
+      final loggedIn = resp is Map &&
+          (resp['logged_in'] == true ||
+              resp['loggedIn'] == true ||
+              resp['status'] == true ||
+              resp['status'] == 'success');
+      if (loggedIn) {
+        request.loggedIn = true;
+        request.jsonData = Map<String, dynamic>.from(resp);
+        if (mounted) {
+          context.read<AuthState>().setFromLoginResponse(
+                Map<String, dynamic>.from(resp),
+                fallbackUsername: resp['username']?.toString(),
+              );
+        }
+      }
+    } catch (_) {
     }
+  }
 
-    if (raw is String && raw.trim().startsWith('<')) {
-      throw const FormatException(
-        'Response HTML terdeteksi (mungkin endpoint salah atau belum login). Pastikan endpoint mengembalikan JSON.',
-      );
+  Future<void> _reloadReservations(CookieRequest request) async {
+    final future = _fetchReservations(request);
+    setState(() {
+      _reservationsFuture = future;
+    });
+    try {
+      final result = await future;
+      if (mounted) {
+        setState(() => _myReservations = result);
+      }
+    } catch (_) {
     }
+  }
 
-    List<dynamic> dataList = [];
-    if (raw is List) {
-      dataList = raw;
-    } else if (raw is Map && raw['data'] is List) {
-      dataList = raw['data'];
-    } else if (raw is Map && raw['results'] is List) {
-      dataList = raw['results'];
-    }
-
-    return dataList
-        .whereType<Map<String, dynamic>>()
-        .map((json) => Reservation.fromJson(json))
-        .toList();
+  Future<List<Reservation>> _fetchReservations(CookieRequest request) {
+    return _reservationService.fetchMine(request);
   }
 
   Future<void> _loadLocations(CookieRequest request) async {
     final results = await _locationService.fetchFitnessSpots(request);
-    results.sort(_locationComparator);
+    List<FitnessSpot> enriched = results;
+    try {
+      _userPosition ??= await _getUserPosition();
+      if (_userPosition != null) {
+        enriched = results
+            .map((spot) => _withDistanceFromUser(spot, _userPosition!))
+            .toList();
+      }
+    } catch (_) {
+    }
+    enriched.sort(
+      (a, b) => _compareLocations(
+        a,
+        b,
+        sortByNearest: _sortByNearest,
+      ),
+    );
     if (!mounted) return;
     setState(() {
-      _locations = results;
+      _allLocations = enriched;
+      _locations = _applyLocationFilters(
+        enriched,
+        topRatedOnly: _filterTopRated,
+        sortByNearest: _sortByNearest,
+      );
     });
   }
 
-  int _locationComparator(FitnessSpot a, FitnessSpot b) {
-    final aDist = a.distanceKm;
-    final bDist = b.distanceKm;
-    if (aDist != null && bDist != null) {
-      return aDist.compareTo(bDist);
+  int _compareLocations(
+    FitnessSpot a,
+    FitnessSpot b, {
+    required bool sortByNearest,
+  }) {
+    if (sortByNearest) {
+      final aDist = a.distanceKm;
+      final bDist = b.distanceKm;
+      if (aDist != null && bDist != null) {
+        return aDist.compareTo(bDist);
+      }
+      if (aDist != null) return -1;
+      if (bDist != null) return 1;
     }
-    if (aDist != null) return -1;
-    if (bDist != null) return 1;
     return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+  }
+
+  List<FitnessSpot> _applyLocationFilters(
+    List<FitnessSpot> source, {
+    required bool topRatedOnly,
+    required bool sortByNearest,
+  }) {
+    var list = List<FitnessSpot>.from(source);
+    if (topRatedOnly) {
+      list = list.where((loc) => (loc.rating ?? 0) >= 4.5).toList();
+    }
+    list.sort(
+      (a, b) => _compareLocations(
+        a,
+        b,
+        sortByNearest: sortByNearest,
+      ),
+    );
+    return list;
+  }
+
+  Future<Position?> _getUserPosition() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      return null;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      return null;
+    }
+
+    try {
+      return await Geolocator.getCurrentPosition();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  FitnessSpot _withDistanceFromUser(FitnessSpot spot, Position position) {
+    final meters = Geolocator.distanceBetween(
+      position.latitude,
+      position.longitude,
+      spot.latitude,
+      spot.longitude,
+    );
+    final km = meters / 1000.0;
+
+    return FitnessSpot(
+      name: spot.name,
+      latitude: spot.latitude,
+      longitude: spot.longitude,
+      address: spot.address,
+      rating: spot.rating,
+      placeId: spot.placeId,
+      ratingCount: spot.ratingCount,
+      website: spot.website,
+      phoneNumber: spot.phoneNumber,
+      types: spot.types,
+      distanceKm: km,
+      description: spot.description,
+    );
+  }
+
+  void _refreshLocationAutocompleteOptions() {
+    final original = _locationController.value;
+    _locationController.value = original.copyWith(text: '${original.text} ');
+    _locationController.value = original;
+  }
+
+  void _showLocationFilterSheet() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        bool sortNearest = _sortByNearest;
+        bool topRated = _filterTopRated;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final media = MediaQuery.of(context);
+            final maxWidth =
+                media.size.width > 520 ? 420.0 : media.size.width * 0.9;
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: Material(
+                    color: Colors.white,
+                    elevation: 10,
+                    borderRadius: BorderRadius.circular(18),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 18, 24, 20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Filter lokasi',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: inputTextColor,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.close,
+                                  size: 20,
+                                  color: inkWeakColor,
+                                ),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => Navigator.of(dialogContext).pop(),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Urutkan',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: inkWeakColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  setModalState(() {
+                                    sortNearest = !sortNearest;
+                                  });
+                                  setState(() {
+                                    _sortByNearest = sortNearest;
+                                    _locations = _applyLocationFilters(
+                                      _allLocations,
+                                      topRatedOnly: topRated,
+                                      sortByNearest: sortNearest,
+                                    );
+                                  });
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (!mounted) return;
+                                    _refreshLocationAutocompleteOptions();
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: sortNearest
+                                        ? primaryNavColor
+                                        : Colors.black26,
+                                  ),
+                                  backgroundColor: sortNearest
+                                      ? primaryNavColor.withOpacity(0.06)
+                                      : Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                icon: Icon(
+                                  Icons.near_me,
+                                  size: 18,
+                                  color: sortNearest
+                                      ? primaryNavColor
+                                      : inkWeakColor,
+                                ),
+                                label: Text(
+                                  'Terdekat',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: sortNearest
+                                        ? primaryNavColor
+                                        : inputTextColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Rating',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: inkWeakColor,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  setModalState(() {
+                                    topRated = !topRated;
+                                  });
+                                  setState(() {
+                                    _filterTopRated = topRated;
+                                    _locations = _applyLocationFilters(
+                                      _allLocations,
+                                      topRatedOnly: topRated,
+                                      sortByNearest: sortNearest,
+                                    );
+                                  });
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (!mounted) return;
+                                    _refreshLocationAutocompleteOptions();
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(
+                                    color: topRated
+                                        ? primaryNavColor
+                                        : Colors.black26,
+                                  ),
+                                  backgroundColor: topRated
+                                      ? primaryNavColor.withOpacity(0.06)
+                                      : Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                              ),
+                              icon: Icon(
+                                Icons.star,
+                                size: 18,
+                                color: topRated
+                                    ? Colors.amber[700]
+                                    : inkWeakColor,
+                              ),
+                              label: Text(
+                                  '4.5+',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: topRated
+                                        ? primaryNavColor
+                                        : inputTextColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _sortByNearest = sortNearest;
+                                    _filterTopRated = topRated;
+                                    _locations = _applyLocationFilters(
+                                      _allLocations,
+                                      topRatedOnly: topRated,
+                                      sortByNearest: sortNearest,
+                                    );
+                                  });
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                    if (!mounted) return;
+                                    _refreshLocationAutocompleteOptions();
+                                  });
+                                  Navigator.of(dialogContext).pop();
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryNavColor,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                child: const Text('Terapkan'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  int _durationInMinutes() {
+    switch (_selectedDuration) {
+      case '1 Jam':
+        return 60;
+      case '2 Jam':
+        return 120;
+      case '3 Jam':
+        return 180;
+      case '4 Jam':
+        return 240;
+      case '5 Jam':
+        return 300;
+      default:
+        return 60;
+    }
+  }
+
+  List<String> _slotsRespectingClosing(int durationMinutes) {
+    if (_selectedDate == null) return _timeSlots;
+    final date = _selectedDate!;
+    final closing = DateTime(date.year, date.month, date.day, _closingHour, 0);
+    return _timeSlots.where((slot) {
+      final tod = _timeOf(slot);
+      final slotStart = DateTime(date.year, date.month, date.day, tod.hour, tod.minute);
+      final slotEnd = slotStart.add(Duration(minutes: durationMinutes));
+      return !slotEnd.isAfter(closing);
+    }).toList();
+  }
+
+  Set<String> _disabledSlotsForSelected(List<String> slots, int durationMinutes) {
+    if (_selectedDate == null || _myReservations.isEmpty) return <String>{};
+
+    final date = _selectedDate!;
+    final selectedLoc =
+        (_selectedLocation?.name ?? _locationController.text).trim().toLowerCase();
+
+    bool sameDay(DateTime dt) =>
+        dt.year == date.year && dt.month == date.month && dt.day == date.day;
+
+    bool locationMatch(Reservation r) {
+      if (selectedLoc.isEmpty) return true;
+      final loc = r.location.toLowerCase();
+      return loc.contains(selectedLoc) || selectedLoc.contains(loc);
+    }
+
+    final disabled = <String>{};
+    for (final slot in slots) {
+      final tod = _timeOf(slot);
+      final slotStart = DateTime(date.year, date.month, date.day, tod.hour, tod.minute);
+      final slotEnd = slotStart.add(Duration(minutes: durationMinutes));
+
+      final conflict = _myReservations.any((r) {
+        if (r.isClosed) return false;
+        if (!locationMatch(r)) return false;
+        final rs = r.startDateTime;
+        final re = r.endDateTime ??
+            (rs != null ? rs.add(const Duration(hours: 1)) : null);
+        if (rs == null || re == null) return false;
+        if (!sameDay(rs)) return false;
+        return rs.isBefore(slotEnd) && re.isAfter(slotStart);
+      });
+
+      if (conflict) disabled.add(slot);
+    }
+
+    return disabled;
   }
 
   String _formatDate(DateTime date) {
@@ -144,6 +571,19 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
     final h = int.tryParse(parts.first) ?? 0;
     final m = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
     return TimeOfDay(hour: h, minute: m);
+  }
+
+  bool get _hasSelectedLocation => _selectedLocation != null;
+
+  void _showLocationRequired() {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Pilih lokasi terlebih dahulu sebelum memilih tanggal atau jam.'),
+          backgroundColor: accentDarkColor,
+        ),
+      );
   }
 
   Future<void> _submit(CookieRequest request) async {
@@ -166,11 +606,32 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
             ? _locationController.text
             : 'Booking');
 
+    final start = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
+    );
+
+    int durationMinutes;
+    durationMinutes = _durationInMinutes();
+
+    final end = start.add(Duration(minutes: durationMinutes));
+
+    final resourceId = _selectedLocation?.placeId.isNotEmpty == true
+        ? _selectedLocation!.placeId
+        : _locationController.text;
+
+    final resourceLabel =
+        _selectedLocation?.name ?? _locationController.text ?? titleValue;
+
     final payload = {
+      'resource_id': resourceId,
+      'resource_label': resourceLabel,
+      'start_time': start.toUtc().toIso8601String(),
+      'end_time': end.toUtc().toIso8601String(),
       'title': titleValue,
-      'location': _locationController.text,
-      'date': _formatDate(_selectedDate!),
-      'time': _formatTime(_selectedTime!),
       'notes': _notesController.text,
     };
 
@@ -180,13 +641,23 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
         jsonEncode(payload),
       );
 
-      final success = (response is Map &&
-          (response['status'] == 'success' || response['success'] == true));
-      final message = (response is Map && response['message'] != null)
-          ? response['message'].toString()
-          : success
-              ? 'Booking created.'
-              : 'Gagal membuat booking, cek konfigurasi endpoint.';
+      final success = response is Map &&
+          (response['status'] == 'success' ||
+              response['success'] == true ||
+              response['id'] != null);
+      final message = () {
+        if (response is Map) {
+          if (response['message'] != null) {
+            return response['message'].toString();
+          }
+          if (response['detail'] != null) {
+            return response['detail'].toString();
+          }
+        }
+        return success
+            ? 'Booking created.'
+            : 'Gagal membuat booking, cek konfigurasi endpoint.';
+      }();
 
       if (!mounted) return;
 
@@ -201,7 +672,7 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
           _selectedDate = DateTime(now.year, now.month, now.day);
           _selectedTime = null;
           _selectedTimeLabel = null;
-          _reservationsFuture = _fetchReservations(request);
+          _reloadReservations(request);
           _dateController.text = _formatDate(_selectedDate!);
         });
       }
@@ -232,6 +703,142 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
   @override
   Widget build(BuildContext context) {
     final request = context.watch<CookieRequest>();
+    final auth = context.watch<AuthState>();
+    final isLoggedIn = auth.isLoggedIn || request.loggedIn;
+
+    if (!_sessionChecked) {
+      return Scaffold(
+        body: Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [gradientStartColor, gradientEndColor],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: const Column(
+            children: [
+              SiteNavBar(active: NavDestination.booking),
+              Expanded(
+                child: Center(
+                  child: CircularProgressIndicator(color: primaryNavColor),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (!isLoggedIn) {
+      return Scaffold(
+        body: Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [gradientStartColor, gradientEndColor],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+          child: Column(
+            children: [
+              const SiteNavBar(active: NavDestination.booking),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16.0),
+                        border: Border.all(color: cardBorderColor),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color.fromARGB(32, 13, 43, 63),
+                            offset: Offset(0, 12),
+                            blurRadius: 28,
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24.0,
+                          vertical: 22.0,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Booking',
+                              style: GoogleFonts.inter(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: titleColor,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Untuk melakukan booking, silakan login terlebih dahulu.',
+                              style: TextStyle(
+                                color: inkWeakColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pushReplacementNamed(
+                                    context,
+                                    '/home',
+                                  ),
+                                  child: const Text('Kembali'),
+                                ),
+                                const SizedBox(width: 12),
+                                ElevatedButton(
+                                  onPressed: () =>
+                                      Navigator.pushReplacementNamed(
+                                    context,
+                                    '/login',
+                                    arguments: const {'next': '/booking'},
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: accentColor,
+                                    foregroundColor: inputTextColor,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 18,
+                                      vertical: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Login',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: Container(
@@ -258,6 +865,21 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                            foregroundColor: primaryNavColor,
+                          ),
+                          onPressed: () {
+                            if (Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            } else {
+                              Navigator.pushReplacementNamed(context, '/home');
+                            }
+                          },
+                          icon: const Icon(Icons.arrow_back_ios_new, size: 16),
+                          label: const Text('Back'),
+                        ),
+                        const SizedBox(height: 4),
                         const _HeroInfoCard(),
                         const SizedBox(height: 16),
                         Center(
@@ -353,16 +975,82 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                             );
                                           }
 
-                                          return LocationSearchField(
-                                            controller: _locationController,
-                                            focusNode: _locationFocusNode,
-                                            locations: _locations,
-                                            onSelected: (loc) {
-                                              setState(() {
-                                                _selectedLocation = loc;
-                                              });
-                                            },
-                                            comparator: _locationComparator,
+                                          return Row(
+                                            children: [
+                                              Expanded(
+                                                child: LocationSearchField(
+                                                  key: ValueKey(
+                                                    'location-autocomplete-${_sortByNearest ? 'near' : 'name'}-${_filterTopRated ? 'top' : 'all'}',
+                                                  ),
+                                                  controller: _locationController,
+                                                  focusNode: _locationFocusNode,
+                                                  locations: _locations,
+                                                  onSelected: (loc) {
+                                                    setState(() {
+                                                      _selectedLocation = loc;
+                                                      if (loc == null) {
+                                                        _selectedTime = null;
+                                                        _selectedTimeLabel = null;
+                                                        _timeController.clear();
+                                                      }
+                                                    });
+                                                  },
+                                                  comparator: (a, b) =>
+                                                      _compareLocations(
+                                                    a,
+                                                    b,
+                                                    sortByNearest:
+                                                        _sortByNearest,
+                                                  ),
+                                                  filterTopRated: _filterTopRated,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              SizedBox(
+                                                height: 48,
+                                                child: OutlinedButton(
+                                                  onPressed: _showLocationFilterSheet,
+                                                  style: OutlinedButton.styleFrom(
+                                                    side: BorderSide(
+                                                      color: (_filterTopRated || !_sortByNearest)
+                                                          ? primaryNavColor
+                                                          : Colors.black87,
+                                                    ),
+                                                    backgroundColor:
+                                                        (_filterTopRated || !_sortByNearest)
+                                                            ? primaryNavColor.withOpacity(0.06)
+                                                            : Colors.white,
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(12),
+                                                    ),
+                                                    padding: const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      Icon(
+                                                        Icons.filter_list,
+                                                        size: 20,
+                                                        color: (_filterTopRated || !_sortByNearest)
+                                                            ? primaryNavColor
+                                                            : inputTextColor,
+                                                      ),
+                                                      const SizedBox(width: 6),
+                                                      Text(
+                                                        'Filter',
+                                                        style: GoogleFonts.inter(
+                                                          fontSize: 13,
+                                                          fontWeight: FontWeight.w700,
+                                                          color: inputTextColor,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           );
                                         },
                                       ),
@@ -371,7 +1059,15 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                     LayoutBuilder(
                                       builder: (context, constraints) {
                                         final isWide = constraints.maxWidth > 720;
+                                        final hasLocation = _hasSelectedLocation;
+                                        final durationMinutes = _durationInMinutes();
+                                        final availableSlots = _slotsRespectingClosing(durationMinutes);
+                                        final disabledSlots =
+                                            _disabledSlotsForSelected(availableSlots, durationMinutes);
                                         final calendar = _CalendarCard(
+                                          enabled: hasLocation,
+                                          onRequireLocation:
+                                              _showLocationRequired,
                                           selectedDate:
                                               _selectedDate ?? DateTime.now(),
                                           onChanged: (date) {
@@ -387,13 +1083,22 @@ class _BookingReservationPageState extends State<BookingReservationPage> {
                                         );
                                         final timePanel = _TimeSlotCard(
                                           durations: _durations,
+                                          enabled: hasLocation,
+                                          onRequireLocation:
+                                              _showLocationRequired,
                                           selectedDuration: _selectedDuration,
                                           onDurationChanged: (val) {
-                                            setState(() => _selectedDuration = val);
+                                            setState(() {
+                                              _selectedDuration = val;
+                                              _selectedTimeLabel = null;
+                                              _selectedTime = null;
+                                              _timeController.clear();
+                                            });
                                           },
-                                          timeSlots: _timeSlots,
+                                          timeSlots: availableSlots,
                                           selectedLabel: _selectedTimeLabel,
                                           selectedDate: _selectedDate,
+                                          disabledSlots: disabledSlots,
                                           onTimeSelected: (label) {
                                             setState(() {
                                               _selectedTimeLabel = label;
@@ -547,46 +1252,15 @@ class _HeroInfoCard extends StatelessWidget {
   }
 }
 
-class Reservation {
-  final int? id;
-  final String title;
-  final String location;
-  final String status;
-  final String scheduleDisplay;
-  final String? notes;
-
-  Reservation({
-    required this.id,
-    required this.title,
-    required this.location,
-    required this.status,
-    required this.scheduleDisplay,
-    this.notes,
-  });
-
-  factory Reservation.fromJson(Map<String, dynamic> json) {
-    final date = json['date']?.toString();
-    final time = json['time']?.toString();
-    final schedule =
-        [date, time].where((e) => e != null && e.isNotEmpty).join(' Â· ');
-    return Reservation(
-      id: json['id'] as int?,
-      title: json['title']?.toString() ??
-          json['class_name']?.toString() ??
-          'Booking',
-      location: json['location']?.toString() ?? 'Lokasi belum diisi',
-      status: json['status']?.toString().toUpperCase() ?? 'PENDING',
-      scheduleDisplay: schedule.isEmpty ? 'Jadwal belum diisi' : schedule,
-      notes: json['notes']?.toString(),
-    );
-  }
-}
-
 class _CalendarCard extends StatelessWidget {
+  final bool enabled;
+  final VoidCallback onRequireLocation;
   final DateTime selectedDate;
   final ValueChanged<DateTime> onChanged;
 
   const _CalendarCard({
+    required this.enabled,
+    required this.onRequireLocation,
     required this.selectedDate,
     required this.onChanged,
   });
@@ -594,7 +1268,7 @@ class _CalendarCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return DecoratedBox(
+    final card = DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFFF5F7FB),
         borderRadius: BorderRadius.circular(16),
@@ -607,81 +1281,137 @@ class _CalendarCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Theme(
-        data: theme.copyWith(
-          useMaterial3: false,
-          colorScheme: theme.colorScheme.copyWith(
-            primary: primaryNavColor,
-            onPrimary: Colors.white,
-            surface: Colors.white,
-            onSurface: inputTextColor,
-          ),
-          datePickerTheme: DatePickerThemeData(
-            dayShape: MaterialStateProperty.all(const CircleBorder()),
-            dayBackgroundColor: MaterialStateProperty.resolveWith((states) {
-              if (states.contains(MaterialState.selected)) {
-                return primaryNavDarkerColor;
-              }
-              return Colors.transparent;
-            }),
-            dayForegroundColor: MaterialStateProperty.resolveWith((states) {
-              if (states.contains(MaterialState.selected)) {
-                return Colors.white;
-              }
-              return inputTextColor;
-            }),
-            dayOverlayColor: MaterialStateProperty.resolveWith((states) {
-              if (states.contains(MaterialState.pressed)) {
-                return primaryNavColor.withOpacity(0.2);
-              }
-              if (states.contains(MaterialState.hovered)) {
-                return primaryNavColor.withOpacity(0.12);
-              }
-              return null;
-            }),
-            todayBorder: BorderSide(
-              color: primaryNavColor.withOpacity(0.1),
-            ),
-            todayForegroundColor: MaterialStateProperty.all(primaryNavColor),
-          ),
+    );
+
+    final content = Theme(
+      data: theme.copyWith(
+        useMaterial3: true,
+        colorScheme: theme.colorScheme.copyWith(
+          primary: primaryNavDarkerColor,
+          onPrimary: Colors.white,
+          surface: Colors.white,
+          onSurface: inputTextColor,
         ),
-        child: CalendarDatePicker(
-          firstDate: DateTime(
-            DateTime.now().year,
-            DateTime.now().month,
-            DateTime.now().day,
-          ),
-          lastDate: DateTime.now().add(const Duration(days: 365)),
-          initialDate: selectedDate,
-          onDateChanged: onChanged,
+        datePickerTheme: DatePickerThemeData(
+          dayShape: MaterialStateProperty.all(const CircleBorder()),
+          dayBackgroundColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return primaryNavDarkerColor;
+            }
+            if (states.contains(MaterialState.disabled)) {
+              return Colors.transparent;
+            }
+            if (states.contains(MaterialState.hovered)) {
+              return primaryNavColor.withOpacity(0.1);
+            }
+            return Colors.transparent;
+          }),
+          dayForegroundColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return Colors.white;
+            }
+            if (states.contains(MaterialState.disabled)) {
+              return inkWeakColor.withOpacity(0.45);
+            }
+            return inputTextColor;
+          }),
+          dayOverlayColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.pressed)) {
+              return primaryNavColor.withOpacity(0.2);
+            }
+            if (states.contains(MaterialState.hovered)) {
+              return primaryNavColor.withOpacity(0.12);
+            }
+            return null;
+          }),
+          todayBackgroundColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return primaryNavDarkerColor;
+            }
+            return Colors.transparent;
+          }),
+          todayForegroundColor: MaterialStateProperty.resolveWith((states) {
+            if (states.contains(MaterialState.selected)) {
+              return Colors.white;
+            }
+            if (states.contains(MaterialState.disabled)) {
+              return inkWeakColor.withOpacity(0.45);
+            }
+            return primaryNavColor;
+          }),
+          todayBorder: const BorderSide(color: Colors.transparent, width: 0),
         ),
       ),
+      child: CalendarDatePicker(
+        firstDate: DateTime(
+          DateTime.now().year,
+          DateTime.now().month,
+          DateTime.now().day,
+        ),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+        initialDate: selectedDate,
+        onDateChanged: onChanged,
+      ),
+    );
+
+    final cardWithPicker = DecoratedBox(
+      decoration: card.decoration,
+      child: content,
+    );
+
+    if (enabled) return cardWithPicker;
+
+    return Stack(
+      children: [
+        Opacity(
+          opacity: 0.5,
+          child: AbsorbPointer(
+            absorbing: true,
+            child: cardWithPicker,
+          ),
+        ),
+        Positioned.fill(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: onRequireLocation,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
 class _TimeSlotCard extends StatelessWidget {
   final List<String> durations;
+  final bool enabled;
+  final VoidCallback onRequireLocation;
   final String selectedDuration;
   final ValueChanged<String> onDurationChanged;
   final List<String> timeSlots;
   final String? selectedLabel;
   final DateTime? selectedDate;
   final ValueChanged<String> onTimeSelected;
+  final Set<String> disabledSlots;
 
   const _TimeSlotCard({
     required this.durations,
+    required this.enabled,
+    required this.onRequireLocation,
     required this.selectedDuration,
     required this.onDurationChanged,
     required this.timeSlots,
     required this.selectedLabel,
     required this.selectedDate,
     required this.onTimeSelected,
+    required this.disabledSlots,
   });
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    final panel = DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFFF5F7FB),
         borderRadius: BorderRadius.circular(16),
@@ -733,15 +1463,46 @@ class _TimeSlotCard extends StatelessWidget {
                 for (final slot in timeSlots)
                   _TimeSlotChip(
                     label: slot,
-                    selected: selectedLabel == slot,
-                    disabled: _isPastSlot(slot),
-                    onTap: () => onTimeSelected(slot),
+                    selected: enabled && selectedLabel == slot,
+                    disabled: !enabled ||
+                        _isPastSlot(slot) ||
+                        disabledSlots.contains(slot),
+                    onTap: () {
+                      if (!enabled) {
+                        onRequireLocation();
+                        return;
+                      }
+                      onTimeSelected(slot);
+                    },
                   ),
               ],
             ),
           ],
         ),
       ),
+    );
+
+    if (enabled) return panel;
+
+    return Stack(
+      children: [
+        Opacity(
+          opacity: 0.55,
+          child: AbsorbPointer(
+            absorbing: true,
+            child: panel,
+          ),
+        ),
+        Positioned.fill(
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: onRequireLocation,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -848,7 +1609,7 @@ class _ReservationsSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Reservasi Saya',
+              'Upcoming Bookings',
               style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -880,7 +1641,10 @@ class _ReservationsSection extends StatelessWidget {
                   );
                 }
 
-                final reservations = snapshot.data ?? [];
+                final allReservations = snapshot.data ?? [];
+                final reservations = allReservations
+                    .where((r) => r.isOngoing)
+                    .toList();
                 if (reservations.isEmpty) {
                   return Padding(
                     padding: const EdgeInsets.all(12.0),
@@ -893,7 +1657,7 @@ class _ReservationsSection extends StatelessWidget {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Belum ada booking. Yuk mulai reservasi pertama kamu!',
+                            'Belum ada booking aktif. Yuk mulai reservasi pertama kamu!',
                             style: GoogleFonts.inter(
                               fontWeight: FontWeight.w600,
                               color: inkWeakColor,
@@ -1054,6 +1818,8 @@ class LocationSearchField extends StatelessWidget {
   final List<FitnessSpot> locations;
   final ValueChanged<FitnessSpot?>? onSelected;
   final int Function(FitnessSpot, FitnessSpot) comparator;
+  final bool filterTopRated;
+  final double minRating;
 
   const LocationSearchField({
     super.key,
@@ -1062,6 +1828,8 @@ class LocationSearchField extends StatelessWidget {
     required this.locations,
     required this.onSelected,
     required this.comparator,
+    this.filterTopRated = false,
+    this.minRating = 4.5,
   });
 
   @override
@@ -1071,7 +1839,7 @@ class LocationSearchField extends StatelessWidget {
       focusNode: focusNode,
       optionsBuilder: (textEditingValue) {
         final query = textEditingValue.text.trim().toLowerCase();
-        final filtered = query.isEmpty
+        var filtered = query.isEmpty
             ? List<FitnessSpot>.from(locations)
             : locations
                 .where(
@@ -1082,6 +1850,13 @@ class LocationSearchField extends StatelessWidget {
                           false),
                 )
                 .toList();
+
+        if (filterTopRated) {
+          filtered = filtered
+              .where((loc) => (loc.rating ?? 0) >= minRating)
+              .toList();
+        }
+
         filtered.sort(comparator);
         return filtered;
       },
@@ -1140,6 +1915,7 @@ class LocationSearchField extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final loc = opts[index];
                   final distance = _distanceText(loc.distanceKm);
+                  final rating = loc.rating;
                   return InkWell(
                     onTap: () => onSelectedOption(loc),
                     child: Padding(
@@ -1153,12 +1929,32 @@ class LocationSearchField extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  loc.name,
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: inputTextColor,
-                                  ),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        loc.name,
+                                        style: theme.textTheme.titleMedium
+                                            ?.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          color: inputTextColor,
+                                        ),
+                                      ),
+                                    ),
+                                    if (distance != null) ...[
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        distance,
+                                        style:
+                                            theme.textTheme.bodySmall?.copyWith(
+                                          color:
+                                              inkWeakColor.withOpacity(0.7),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                                 if (loc.address != null &&
                                     loc.address!.isNotEmpty)
@@ -1171,17 +1967,32 @@ class LocationSearchField extends StatelessWidget {
                                       ),
                                     ),
                                   ),
+                                if (rating != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2.0),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.star,
+                                          size: 14,
+                                          color: Colors.amber,
+                                        ),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          rating.toStringAsFixed(1),
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                            color: inputTextColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
-                          if (distance != null)
-                            Text(
-                              distance,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: inkWeakColor,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
                         ],
                       ),
                     ),

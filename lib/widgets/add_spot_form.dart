@@ -29,7 +29,7 @@ class _AddSpotFormState extends State<AddSpotForm> {
   final _typeController = TextEditingController();
   final _websiteController = TextEditingController();
   final _phoneController = TextEditingController();
-  
+
   bool _isLoading = false;
 
   @override
@@ -58,9 +58,9 @@ class _AddSpotFormState extends State<AddSpotForm> {
         'longitude': widget.longitude,
         'website': _websiteController.text,
         'phone_number': _phoneController.text,
-        'types': _typeController.text.isNotEmpty 
-            ? [_typeController.text] 
-            : ['gym'], // Default if empty
+        'types': _typeController.text.isNotEmpty
+            ? [_typeController.text]
+            : ['gym'],
       };
 
       final success = await service.createFitnessSpot(request, data);
