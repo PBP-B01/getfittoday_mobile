@@ -43,28 +43,27 @@ jobs:
       - name: Get packages
         run: flutter pub get
 
-      # 4. Build the APK (Split per ABI reduces size, or remove flag for one big APK)
-      - name: Build APK
-        run: flutter build apk --release --split-per-abi
-
       # 5. Decode the Keystore from Secrets
       - name: Decode Keystore
         run: echo "${{ secrets.KEY_JKS }}" | base64 -d > release-keystore.jks
 
-      # 6. Sign the APKs manually
-      # Note: We use the alias 'release' because that is what you used in the keytool command
-      - name: Sign APKs
+      # 5.1 Print Keystore Fingerprint (Debug Map Issue)
+      - name: Print Keystore Fingerprint
         run: |
-          for apk in build/app/outputs/flutter-apk/*.apk; do
-            echo "Signing $apk..."
-            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
-              -keystore release-keystore.jks \
-              -storepass "${{ secrets.KEY_PASSWORD }}" \
-              -keypass "${{ secrets.KEY_PASSWORD }}" \
-              "$apk" release
-          done
+          keytool -list -v \
+            -keystore release-keystore.jks \
+            -alias release \
+            -storepass "${{ secrets.KEY_PASSWORD }}"
 
-      # 7. Clean up secrets immediately
+      # 6. Build APK (Let Gradle sign it)
+      - name: Build APK
+        run: flutter build apk --release --split-per-abi
+        env:
+          KEY_PATH: ../release-keystore.jks # Path relative to android/app (gradle root)
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: release
+
+      # 7. Clean up secrets
       - name: Cleanup Keystore
         if: always()
         run: rm -f release-keystore.jks
