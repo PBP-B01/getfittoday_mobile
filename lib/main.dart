@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/screens/booking_reservation.dart';
+import 'package:getfittoday_mobile/screens/blogsnevents.dart';
 import 'package:getfittoday_mobile/screens/home.dart';
 import 'package:getfittoday_mobile/screens/login.dart';
 import 'package:getfittoday_mobile/screens/register.dart';
@@ -97,6 +98,7 @@ class MyApp extends StatelessWidget {
           '/register': (context) => const RegisterPage(),
           '/home': (context) => const MyHomePage(),
           '/booking': (context) => const BookingReservationPage(),
+          '/blogsnevents': (context) => const BlogsEventsPage(),
           '/community': (context) => const CommunityListPage(),
           '/store': (context) => const ProductEntryListPage(),
           '/my-bookings': (context) => const MyBookingsPage(),

@@ -107,6 +107,8 @@ class SiteNavBar extends StatelessWidget {
         return '/booking';
       case NavDestination.store:
         return '/store';
+      case NavDestination.blogs:
+        return '/blogsnevents';
       case NavDestination.community:
         return '/community';
       default:
