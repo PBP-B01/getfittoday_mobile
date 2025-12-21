@@ -40,32 +40,19 @@ jobs:
       - name: Get packages
         run: flutter pub get
 
-      - name: Build APK
-        run: flutter build apk --release
-
-      # --- START MANUAL SIGNING STEPS ---
-
       - name: Decode Keystore
-        # Decodes to root directory so jarsigner can find it
-        run: echo "${{ secrets.KEY_JKS }}" | base64 -d > release-keystore.jks
+        run: echo "${{ secrets.KEY_JKS }}" | base64 -d > android/release-keystore.jks
 
-      - name: Sign APKs
-        run: |
-          # Loop through all generated APKs
-          for apk in build/app/outputs/flutter-apk/*.apk; do
-            echo "Signing $apk..."
-            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
-              -keystore release-keystore.jks \
-              -storepass "${{ secrets.KEY_PASSWORD }}" \
-              -keypass "${{ secrets.KEY_PASSWORD }}" \
-              "$apk" release
-          done
+      - name: Build APK
+        env:
+          KEY_ALIAS: release
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PATH: ../release-keystore.jks
+        run: flutter build apk --release --split-per-abi
 
       - name: Cleanup Keystore
         if: always()
-        run: rm -f release-keystore.jks
-
-      # --- END MANUAL SIGNING STEPS ---
+        run: rm -f android/release-keystore.jks
 
       - name: Get current date
         id: date
