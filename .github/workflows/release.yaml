@@ -48,7 +48,7 @@ jobs:
           KEY_ALIAS: release
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           KEYSTORE_PATH: ../release-keystore.jks
-        run: flutter build apk --release --split-per-abi
+        run: flutter build apk --release
 
       - name: Cleanup Keystore
         if: always()
