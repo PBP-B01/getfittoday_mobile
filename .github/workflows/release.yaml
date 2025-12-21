@@ -22,7 +22,7 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0' # Adjusting to a recent stable version, or match pubspec environment if possible. Pubspec said ^3.9.2 (Dart) which implies Flutter 3.x. I'll use a stable 3.x.
+          flutter-version: '3.35.7' 
           channel: 'stable'
 
       - run: flutter pub get
