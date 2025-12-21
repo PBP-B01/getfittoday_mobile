@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/screens/home.dart';
 import 'package:pbp_django_auth/pbp_django_auth.dart';
 import 'package:provider/provider.dart';
@@ -81,7 +82,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                 onPressed: () async {
                   if (_formKey.currentState!.validate()) {
                     final response = await request.postJson(
-                        "http://10.0.2.2:8000/store/create-flutter/",
+                        "$djangoBaseUrl/store/create-flutter/",
                         jsonEncode({
                             "name": _name,
                             "price": _price,

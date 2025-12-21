@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:getfittoday_mobile/constants.dart';
 import 'package:getfittoday_mobile/screens/products_entry_list.dart';
 import 'package:getfittoday_mobile/screens/productslist_form.dart';
 import 'package:getfittoday_mobile/state/auth_state.dart';
@@ -35,7 +36,7 @@ class ItemCard extends StatelessWidget {
                 MaterialPageRoute(builder: (context) => const ProductEntryListPage()));
           } else if (item.name == "Logout") {
             final response = await request.logout(
-                "http://10.0.2.2:8000/auth/logout/");
+                "$djangoBaseUrl/auth/logout/");
             String message = response["message"];
             if (context.mounted) {
               if (response['status']) {

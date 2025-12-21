@@ -1,10 +1,26 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 const String _configuredBaseUrl =
     String.fromEnvironment('DJANGO_BASE_URL', defaultValue: '');
-const String _webBaseUrl = 'http://localhost:8000';
-const String _androidDeviceBaseUrl = 'http://127.0.0.1:8000';
+const String _defaultProdBaseUrl =
+    'https://samuel-indriano-get-fit-today.pbp.cs.ui.ac.id';
+
+String _normalizeBaseUrl(String value) {
+  var normalized = value.trim();
+  if (normalized.isEmpty) return '';
+
+  if ((normalized.startsWith('"') && normalized.endsWith('"')) ||
+      (normalized.startsWith("'") && normalized.endsWith("'"))) {
+    normalized = normalized.substring(1, normalized.length - 1).trim();
+  }
+
+  while (normalized.endsWith('/')) {
+    normalized = normalized.substring(0, normalized.length - 1);
+  }
+
+  return normalized;
+}
 
 const String homeLocationsEndpoint = '/api/fitness-spots/';
 
@@ -31,22 +47,19 @@ String get bookingCreateEndpoint {
 }
 
 String get djangoBaseUrl {
-  if (_configuredBaseUrl.isNotEmpty) {
-    return _configuredBaseUrl;
+  final configured = _normalizeBaseUrl(_configuredBaseUrl);
+  if (configured.isNotEmpty) return configured;
+
+  String envBaseUrl = '';
+  try {
+    envBaseUrl = dotenv.env['DJANGO_BASE_URL'] ?? '';
+  } catch (_) {
+    envBaseUrl = '';
   }
-  if (kIsWeb) {
-    return _webBaseUrl;
-  }
-  switch (defaultTargetPlatform) {
-    case TargetPlatform.android:
-      return _androidDeviceBaseUrl;
-    case TargetPlatform.iOS:
-    case TargetPlatform.macOS:
-    case TargetPlatform.windows:
-    case TargetPlatform.linux:
-    case TargetPlatform.fuchsia:
-      return _webBaseUrl;
-  }
+  final envConfigured = _normalizeBaseUrl(envBaseUrl);
+  if (envConfigured.isNotEmpty) return envConfigured;
+
+  return _defaultProdBaseUrl;
 }
 
 const Color primaryNavColor = Color(0xFF0E5A64);
